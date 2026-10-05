@@ -77,9 +77,15 @@ export interface StatsResponse {
   n_reaction: number
   n_echec: number
   n_decided?: number
+  /** Alias of n_decided — réactions + échecs (trades fermés). */
+  n_closed?: number
   reaction_rate: number | null
   reaction_rate_touched?: number | null
   denominator?: string
+  /** Calendar span of closed trades (first→last), days. */
+  span_days?: number | null
+  /** n_closed / span_days when span is known. */
+  trades_per_day?: number | null
   by_tf: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>
   by_score: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>
   by_group: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>

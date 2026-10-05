@@ -7,6 +7,11 @@ function pct(r: number | null | undefined) {
   return `${(r * 100).toFixed(1)} %`
 }
 
+function fmtTpd(r: number | null | undefined) {
+  if (r == null || Number.isNaN(r)) return null
+  return `${r.toFixed(2)} / jour`
+}
+
 function fmtTs(s?: string | null) {
   if (!s) return '—'
   try {
@@ -80,26 +85,49 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : (
         <>
-          <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5">
             <StatCard label="Zones en base" value={String(stats.n)} sub="toutes" />
             <StatCard
-              label="Touchées (dénominateur)"
+              label="Touchées"
               value={String(stats.n_touched)}
-              sub="base des stats"
+              sub={`dont ${pending.length} en attente`}
+            />
+            <StatCard
+              label="Trades fermés"
+              value={String(
+                stats.n_closed ?? stats.n_decided ?? stats.n_reaction + stats.n_echec,
+              )}
+              accent="text-amber-300"
+              sub={`${stats.n_reaction} réactions + ${stats.n_echec} échecs${
+                fmtTpd(stats.trades_per_day)
+                  ? ` · ${fmtTpd(stats.trades_per_day)}`
+                  : ''
+              }`}
             />
             <StatCard
               label="Réactions"
               value={String(stats.n_reaction)}
               accent="text-emerald-400"
-              sub={`${pending.length} en attente`}
+              sub="parmi les fermés"
             />
             <StatCard
-              label="Taux (parmi décidés)"
+              label="Taux de réaction"
               value={pct(stats.reaction_rate)}
-              sub={`${stats.n_echec} échecs · ${stats.n_decided ?? stats.n_reaction + stats.n_echec} décidés · touchés ${pct(stats.reaction_rate_touched)}`}
+              sub={`dénominateur = trades fermés (${
+                stats.n_closed ?? stats.n_decided ?? stats.n_reaction + stats.n_echec
+              }) · parmi touchées ${pct(stats.reaction_rate_touched)}`}
               accent="text-blue-300"
             />
           </div>
+          <p className="mb-4 text-xs text-zinc-500">
+            Dénominateur du taux :{' '}
+            <span className="text-zinc-300">
+              {stats.denominator || 'décidés (réaction+échec = trades fermés)'}
+            </span>
+            {stats.span_days != null && stats.span_days > 0
+              ? ` · fenêtre fermés ≈ ${stats.span_days.toFixed(1)} j`
+              : ''}
+          </p>
 
           <div className="mb-6 grid gap-3 md:grid-cols-2">
             <BucketTable title="Par groupe (N = touchées)" data={stats.by_group} />

@@ -213,6 +213,35 @@ def refresh_statuses(
     return summary
 
 
+def _parse_ts(s: str | None):
+    """Parse ISO-ish timestamps from zone lifecycle fields; return aware/naive datetime or None."""
+    if not s:
+        return None
+    try:
+        from datetime import datetime
+
+        raw = str(s).strip().replace("Z", "+00:00")
+        return datetime.fromisoformat(raw)
+    except Exception:
+        return None
+
+
+def _closed_span_and_rate(decided: list[dict]) -> tuple[float | None, float | None]:
+    """Span (days) from first to last closed trade; trades/day = n_closed / span."""
+    stamps = []
+    for z in decided:
+        ts = _parse_ts(z.get("reacted_at") or z.get("failed_at") or z.get("touched_at"))
+        if ts is not None:
+            stamps.append(ts)
+    if len(stamps) < 2:
+        # Single (or zero) closed trade: rate undefined; span None
+        return (None, None)
+    delta = (max(stamps) - min(stamps)).total_seconds() / 86400.0
+    if delta <= 0:
+        return (None, None)
+    return (delta, len(decided) / delta)
+
+
 def compute_stats(
     *,
     tf: str | None = None,
@@ -268,6 +297,9 @@ def compute_stats(
         return out
 
     decided_n = len(decided)
+    # Trades fermés = réactions + échecs (décidés). Optional trades/day over closed span.
+    span_days, trades_per_day = _closed_span_and_rate(decided)
+
     return {
         "n": len(zones),
         "by_status": dict(by_status),
@@ -275,9 +307,12 @@ def compute_stats(
         "n_reaction": len(reacted),
         "n_echec": len(failed),
         "n_decided": decided_n,
+        "n_closed": decided_n,  # alias UI: « Trades fermés »
         "reaction_rate": reaction_rate,
         "reaction_rate_touched": (len(reacted) / len(touched)) if touched else None,
-        "denominator": "decided (réaction+échec)",
+        "denominator": "decided (réaction+échec = trades fermés)",
+        "span_days": span_days,
+        "trades_per_day": trades_per_day,
         "by_tf": bucket(lambda z: z.get("tf") or "?", touched_only=True),
         "by_score": bucket(lambda z: str(z.get("score") or "?"), touched_only=True),
         "by_group": bucket(lambda z: gmap.get(z.get("symbol", ""), "?"), touched_only=True),
