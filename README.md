@@ -122,7 +122,7 @@ Tools: `list_zones`, `get_zone`, `scan_now`, `get_stats`, `get_candles`, `get_ch
 
 UI tab **Claude / MCP** shows live catalog from `GET /mcp/tools` + copy-paste Claude Desktop JSON.
 
-Hosting: see `DEPLOY.md`, `Dockerfile`, `docker-compose.yml`.
+Hosting: see `DEPLOY.md`, `DEPLOY_PA.md` (PythonAnywhere), `Dockerfile`, `docker-compose.yml`.
 
 ## Lifecycle & Telegram (P3–P4)
 

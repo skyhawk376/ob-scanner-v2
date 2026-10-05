@@ -60,3 +60,7 @@ See `DEPLOY.md` + `Dockerfile` / `docker-compose.yml` (API + optional `frontend/
 ## Phases done
 
 P0 data · P1 engine · P2 UI · P3 lifecycle · P4 Telegram · **P5 MCP**
+
+## PythonAnywhere
+
+See `DEPLOY_PA.md` — WSGI via `wsgi.py` + `a2wsgi`. Clone to `~/ob-scanner-v2`; switch Web WSGI to v2 (free = one app). v1 folder kept for rollback.

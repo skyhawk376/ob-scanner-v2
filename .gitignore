@@ -1,14 +1,18 @@
 .venv/
 __pycache__/
-*.pyc
+*.py[cod]
 .env
 node_modules/
-data/cache/
-data/results/*.sqlite
-data/results/*.json
-data/results/*.log
-data/results/*.png
-*.tar.gz
+data/cache/**
+!data/cache/.gitkeep
+data/results/**
+!data/results/.gitkeep
+!data/results/charts/.gitkeep
+*.parquet
+.pytest_cache/
+.mypy_cache/
 .DS_Store
-frontend/dist/
 bin/cloudflared
+*.egg-info/
+# frontend/dist IS tracked for PythonAnywhere (no Node build on PA)
+# frontend/dist/
