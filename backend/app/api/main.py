@@ -69,15 +69,20 @@ def _maybe_scheduler():
 
 @app.get("/health")
 def health():
+    """Lightweight — avoid providers/network so PA WSGI never hangs on probe."""
     settings = get_settings()
-    hub = ProviderHub(settings)
-    instruments = load_instruments(settings.symbols_yaml)
+    try:
+        instruments = load_instruments(settings.symbols_yaml)
+        n = len(instruments)
+        by_group = count_by_group(instruments)
+    except Exception as e:
+        return {"status": "degraded", "phase": "P5", "error": str(e)}
     return {
         "status": "ok",
         "phase": "P5",
-        "symbols": len(instruments),
-        "by_group": count_by_group(instruments),
-        "oanda_configured": hub.oanda.configured,
+        "symbols": n,
+        "by_group": by_group,
+        "oanda_configured": bool(settings.oanda_api_key.strip()),
         "telegram_configured": settings.telegram_configured,
         "telegram_dry_run": settings.telegram_dry_run or not settings.telegram_configured,
         "cache_dir": str(settings.cache_dir),

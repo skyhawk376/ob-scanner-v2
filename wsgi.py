@@ -1,15 +1,12 @@
 """
-PythonAnywhere WSGI entry for OB Scanner v2 (FastAPI).
+PythonAnywhere WSGI entry for OB Scanner v2 (FastAPI via a2wsgi).
 
-Free PA expects a WSGI callable named `application` — it does not run uvicorn.
-
-Point the Web tab WSGI file at this path, e.g.:
-  /home/skyhawk376/ob-scanner-v2/wsgi.py
-
-v1 (old prototype) stays at /home/skyhawk376/ob-scanner — switch WSGI back there to restore it.
+Point the Web tab WSGI file at this path, or keep a thin /var/www/..._wsgi.py
+that only imports `application` from here.
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from pathlib import Path
@@ -17,23 +14,27 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 BACKEND = ROOT / "backend"
 
-# Data dirs under the project (writable on PA home)
 os.environ.setdefault("CACHE_DIR", str(ROOT / "data" / "cache"))
 os.environ.setdefault("RESULTS_DIR", str(ROOT / "data" / "results"))
 os.environ.setdefault("TZ", "Europe/Paris")
-# Ensure symbols.yaml is found via Settings defaults (ROOT in config = parents[3] from core/config.py)
+# Scheduler off on PA free (background threads + WSGI = flaky)
+os.environ.setdefault("ENABLE_SCHEDULER", "false")
 
 if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
-# Create data dirs early
 (ROOT / "data" / "cache").mkdir(parents=True, exist_ok=True)
 (ROOT / "data" / "results").mkdir(parents=True, exist_ok=True)
 (ROOT / "data" / "results" / "charts").mkdir(parents=True, exist_ok=True)
 
+# PA WSGI workers have no running loop; create one before a2wsgi uses it.
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
 from a2wsgi import ASGIMiddleware  # noqa: E402
 
-# Clear settings cache if previously imported (reload on PA)
 try:
     from app.core.config import get_settings
 
@@ -43,4 +44,5 @@ except Exception:
 
 from app.api.main import app as fastapi_app  # noqa: E402
 
-application = ASGIMiddleware(fastapi_app)
+# wait_time: avoid hanging forever after response if ASGI cleanup stalls
+application = ASGIMiddleware(fastapi_app, wait_time=30.0)
