@@ -201,6 +201,174 @@ def replace_zones(
     return len(rows)
 
 
+
+def upsert_zones(
+    conn: sqlite3.Connection,
+    zones: Iterable[Zone | dict[str, Any]],
+    *,
+    tf: str | None = None,
+    symbols: set[str] | None = None,
+    preserve_lifecycle: bool = True,
+) -> int:
+    """Insert/update scan zones without wiping lifecycle on known IDs.
+
+    - Preserves status/touched_at/reacted_at/... for existing zone IDs when the
+      incoming row is still 'active' (fresh scan does not carry lifecycle).
+    - Deletes only *active* zones in scope that are absent from this scan
+      (keeps touchee/reaction/echec/expiree from prior refreshes).
+    """
+    cur = conn.cursor()
+    rows_in: list[dict[str, Any]] = []
+    for z in zones:
+        d = z.to_dict() if isinstance(z, Zone) else dict(z)
+        rows_in.append(d)
+
+    new_ids = {d["id"] for d in rows_in}
+    scope_tf = tf.upper() if tf else None
+
+    LIFE_KEYS = (
+        "status",
+        "touched_at",
+        "touched_session",
+        "reacted_at",
+        "failed_at",
+        "expired_at",
+        "outcome",
+        "mfe_r",
+        "mae_r",
+    )
+
+    existing: dict[str, dict[str, Any]] = {}
+    if preserve_lifecycle and new_ids:
+        qmarks = ",".join("?" * len(new_ids))
+        for row in cur.execute(
+            f"""
+            SELECT id, status, touched_at, touched_session, reacted_at, failed_at,
+                   expired_at, outcome, mfe_r, mae_r
+            FROM zones WHERE id IN ({qmarks})
+            """,
+            list(new_ids),
+        ):
+            existing[row["id"]] = {k: row[k] for k in ("id", *LIFE_KEYS)}
+
+    # Drop stale *active* zones in scope that are not in this scan
+    if scope_tf and symbols is not None:
+        qmarks = ",".join("?" * len(symbols))
+        if new_ids:
+            id_marks = ",".join("?" * len(new_ids))
+            cur.execute(
+                f"""
+                DELETE FROM zones
+                WHERE tf=? AND symbol IN ({qmarks})
+                  AND (status IS NULL OR status = 'active')
+                  AND id NOT IN ({id_marks})
+                """,
+                [scope_tf, *symbols, *new_ids],
+            )
+        else:
+            cur.execute(
+                f"""
+                DELETE FROM zones
+                WHERE tf=? AND symbol IN ({qmarks})
+                  AND (status IS NULL OR status = 'active')
+                """,
+                [scope_tf, *symbols],
+            )
+    elif scope_tf:
+        if new_ids:
+            id_marks = ",".join("?" * len(new_ids))
+            cur.execute(
+                f"""
+                DELETE FROM zones
+                WHERE tf=?
+                  AND (status IS NULL OR status = 'active')
+                  AND id NOT IN ({id_marks})
+                """,
+                [scope_tf, *new_ids],
+            )
+        else:
+            cur.execute(
+                """
+                DELETE FROM zones
+                WHERE tf=? AND (status IS NULL OR status = 'active')
+                """,
+                (scope_tf,),
+            )
+
+    now = datetime.now(timezone.utc).isoformat()
+    rows = []
+    for d in rows_in:
+        if preserve_lifecycle and d["id"] in existing:
+            old = existing[d["id"]]
+            old_status = old.get("status") or "active"
+            new_status = d.get("status") or "active"
+            # Incoming fresh scan has active; keep progressed lifecycle from DB
+            if old_status != "active" and new_status == "active":
+                for k in LIFE_KEYS:
+                    if old.get(k) is not None:
+                        d[k] = old[k]
+
+        rows.append(
+            (
+                d["id"],
+                d["symbol"],
+                d["tf"],
+                d["direction"],
+                d["ts_ob"],
+                d.get("ts_bos"),
+                d["low"],
+                d["high"],
+                d["score"],
+                int(d.get("fresh", True)),
+                int(d.get("star1_fvg", False)),
+                int(d.get("star2_trend", False)),
+                int(d.get("star3_fib", False)),
+                int(d.get("star4_liquidity", False)),
+                int(d.get("star5_session", False)),
+                int(d.get("star5_pending", False)),
+                d["entry"],
+                d["sl"],
+                d.get("tp1"),
+                d.get("tp2"),
+                d.get("rr_tp1"),
+                d.get("rr_tp2"),
+                d.get("atr"),
+                d.get("distance_atr"),
+                d.get("last_close"),
+                d.get("session_label"),
+                int(d.get("sweep", False)),
+                d.get("trend"),
+                d.get("fib_eq"),
+                json.dumps(d, default=str),
+                now,
+                d.get("status", "active"),
+                d.get("touched_at"),
+                d.get("touched_session"),
+                d.get("reacted_at"),
+                d.get("failed_at"),
+                d.get("expired_at"),
+                d.get("outcome"),
+                float(d.get("mfe_r") or 0),
+                float(d.get("mae_r") or 0),
+            )
+        )
+    cur.executemany(
+        """
+        INSERT OR REPLACE INTO zones (
+            id, symbol, tf, direction, ts_ob, ts_bos, low, high, score, fresh,
+            star1, star2, star3, star4, star5, star5_pending,
+            entry, sl, tp1, tp2, rr_tp1, rr_tp2, atr, distance_atr, last_close,
+            session_label, sweep, trend, fib_eq, payload, scanned_at,
+            status, touched_at, touched_session, reacted_at, failed_at, expired_at,
+            outcome, mfe_r, mae_r
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """,
+        rows,
+    )
+    conn.commit()
+    return len(rows)
+
+
 def update_zone_lifecycle(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
     conn.execute(
         """

@@ -31,7 +31,7 @@ if str(BACKEND) not in sys.path:
 (ROOT / "data" / "results").mkdir(parents=True, exist_ok=True)
 (ROOT / "data" / "results" / "charts").mkdir(parents=True, exist_ok=True)
 
-from app.core.cache import read_cache  # noqa: E402
+from app.core.cache import cache_freshness, read_cache  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
 from app.core.monitor import compute_stats, refresh_statuses  # noqa: E402
 from app.core.scanner import load_stored_zones, run_scan  # noqa: E402
@@ -121,6 +121,7 @@ def _handle_api(method: str, path: str, qs: str):
             by_group = count_by_group(instruments)
         except Exception as e:
             return ("200 OK", {"status": "degraded", "phase": "P5", "error": str(e)})
+        cache_info = cache_freshness(settings.cache_dir, "H1")
         return (
             "200 OK",
             {
@@ -132,8 +133,11 @@ def _handle_api(method: str, path: str, qs: str):
                 "telegram_configured": settings.telegram_configured,
                 "telegram_dry_run": settings.telegram_dry_run or not settings.telegram_configured,
                 "cache_dir": str(settings.cache_dir),
+                "cache_last_candle": cache_info.get("last_candle"),
+                "cache_age_sec": cache_info.get("age_sec"),
                 "tz": settings.tz,
                 "wsgi": "pure",
+                "scheduler": False,
             },
         )
 
@@ -171,6 +175,25 @@ def _handle_api(method: str, path: str, qs: str):
             require_fresh=not include_mitigated,
             persist=True,
         )
+        # P0: auto-chain lifecycle refresh so Touches/Réaction are not empty
+        refresh_meta = None
+        try:
+            rsum = refresh_statuses(
+                tf=tf,
+                history=False,
+                groups=groups,
+                min_score=min_score,
+                notify=False,
+                force_dry_telegram=True,
+            )
+            refresh_meta = {
+                "mode": rsum.mode,
+                "updated": rsum.updated,
+                "by_status": rsum.by_status,
+                "elapsed_sec": round(rsum.elapsed_sec, 2),
+            }
+        except Exception as e:
+            refresh_meta = {"error": str(e)[:300]}
         return (
             "200 OK",
             {
@@ -180,6 +203,7 @@ def _handle_api(method: str, path: str, qs: str):
                 "symbols_scanned": len(summary.per_symbol),
                 "symbols_ok": sum(1 for s in summary.per_symbol if s.ok),
                 "zones": [z.to_dict() for z in summary.zones],
+                "refresh": refresh_meta,
             },
         )
 
@@ -259,6 +283,34 @@ def _handle_api(method: str, path: str, qs: str):
     if path == "/stats" and method == "GET":
         tf = _one(params, "tf")
         return ("200 OK", compute_stats(tf=tf))
+
+
+    if path == "/fetch" and method == "POST":
+        # Free PA: no yfinance/ccxt — live fetch would fail or bloat disk.
+        # Documented cron path: fetch locally → upload cache → refresh_status.py
+        return (
+            "501 Not Implemented",
+            {
+                "ok": False,
+                "detail": (
+                    "POST /fetch désactivé sur PythonAnywhere free "
+                    "(pas de yfinance/ccxt, quota disque). "
+                    "Utiliser scripts/fetch_candles.py en local, uploader data/cache/, "
+                    "puis scripts/refresh_status.py --tf H1 (et --history pour backfill)."
+                ),
+                "cron": {
+                    "local_fetch": "python scripts/fetch_candles.py --tf H1 --quiet",
+                    "upload": "scp/rsync data/cache/ → ~/ob-scanner-v2/data/cache/",
+                    "refresh": "cd ~/ob-scanner-v2 && .venv/bin/python scripts/refresh_status.py --tf H1",
+                    "history_daily": ".venv/bin/python scripts/refresh_status.py --tf H1 --history",
+                },
+            },
+        )
+
+    if path == "/cache-status" and method == "GET":
+        tf_c = (_one(params, "tf", "H1") or "H1").upper()
+        info = cache_freshness(settings.cache_dir, tf_c)
+        return ("200 OK", info)
 
     if path == "/mcp/tools" and method == "GET":
         from app.mcp.catalog import TOOL_CATALOG

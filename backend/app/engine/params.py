@@ -37,6 +37,9 @@ class EngineParams:
     ny_end: tuple[int, int] = (17, 30)
     # H4/D/W: ★5 pending until touch
     session_at_touch_tfs: tuple[str, ...] = ("H4", "D", "W")
+    # Lifecycle reaction sensitivity (also overridable via env SOFT_REACTION_R / ENABLE_SOFT_REACTION)
+    reaction_r: float = 1.0
+    soft_reaction_r: float = 0.5  # 0 = disable soft; default 0.5R ON
 
 
 def params_for_tf(tf: str) -> EngineParams:

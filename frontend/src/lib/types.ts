@@ -67,6 +67,7 @@ export interface ScanResponse {
   symbols_scanned: number
   symbols_ok: number
   zones: Zone[]
+  refresh?: { mode?: string; updated?: number; by_status?: Record<string, number>; elapsed_sec?: number; error?: string }
 }
 
 export interface StatsResponse {
@@ -75,11 +76,30 @@ export interface StatsResponse {
   n_touched: number
   n_reaction: number
   n_echec: number
+  n_decided?: number
   reaction_rate: number | null
-  by_tf: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null }>
-  by_score: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null }>
-  by_group: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null }>
-  by_session: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null }>
+  reaction_rate_touched?: number | null
+  denominator?: string
+  by_tf: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>
+  by_score: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>
+  by_group: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>
+  by_session: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>
+}
+
+export interface HealthResponse {
+  status: string
+  phase: string
+  cache_last_candle?: string | null
+  cache_age_sec?: number | null
+  telegram_configured?: boolean
+}
+
+export interface CacheStatus {
+  tf: string
+  last_candle: string | null
+  age_sec: number | null
+  n_files?: number
+  symbol?: string | null
 }
 
 export interface McpToolsResponse {

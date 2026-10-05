@@ -6,11 +6,21 @@ import { ReactionTab } from './components/ReactionTab'
 import { ScanButton } from './components/ScanButton'
 import { TopNav } from './components/TopNav'
 import { TouchesTab } from './components/TouchesTab'
-import { fetchZones, health, runScan } from './lib/api'
+import { fetchCacheStatus, fetchZones, health, runScan } from './lib/api'
 import { filterZones, sortZones } from './lib/sortZones'
 import type { GroupId, TabId, Timeframe, Zone } from './lib/types'
 
 const ALL_GROUPS: GroupId[] = ['NQ100', 'METAUX', 'ENERGIE', 'FOREX', 'CRYPTO']
+
+function formatCacheAge(ageSec: number | null | undefined, lastCandle?: string | null): string | null {
+  if (ageSec == null && !lastCandle) return null
+  if (ageSec == null) return 'cache ?'
+  const h = Math.floor(ageSec / 3600)
+  const m = Math.floor((ageSec % 3600) / 60)
+  if (h >= 48) return `cache ${Math.floor(h / 24)}j`
+  if (h >= 1) return `cache ${h}h${m > 0 ? String(m).padStart(2, '0') : ''}`
+  return `cache ${m} min`
+}
 
 export default function App() {
   const [tab, setTab] = useState<TabId>('scanner')
@@ -25,10 +35,36 @@ export default function App() {
   const [elapsed, setElapsed] = useState<number | null>(null)
   const [apiOk, setApiOk] = useState<boolean | null>(null)
   const [groupMap, setGroupMap] = useState<Record<string, string>>({})
+  const [cacheAgeLabel, setCacheAgeLabel] = useState<string | null>(null)
+  const [cacheStale, setCacheStale] = useState(false)
+
+  const refreshCacheBadge = useCallback((timeframe: Timeframe) => {
+    fetchCacheStatus(timeframe)
+      .then((c) => {
+        const label = formatCacheAge(c.age_sec, c.last_candle)
+        setCacheAgeLabel(label)
+        setCacheStale(c.age_sec != null && c.age_sec > 6 * 3600)
+      })
+      .catch(() => {
+        // fallback health
+        health()
+          .then((h) => {
+            const label = formatCacheAge(h.cache_age_sec ?? null, h.cache_last_candle)
+            setCacheAgeLabel(label)
+            setCacheStale((h.cache_age_sec ?? 0) > 6 * 3600)
+          })
+          .catch(() => {})
+      })
+  }, [])
 
   useEffect(() => {
     health()
-      .then(() => setApiOk(true))
+      .then((h) => {
+        setApiOk(true)
+        const label = formatCacheAge(h.cache_age_sec ?? null, h.cache_last_candle)
+        setCacheAgeLabel(label)
+        setCacheStale((h.cache_age_sec ?? 0) > 6 * 3600)
+      })
       .catch(() => setApiOk(false))
     fetch('/api/symbols')
       .then((r) => r.json())
@@ -47,6 +83,10 @@ export default function App() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    refreshCacheBadge(tf)
+  }, [tf, refreshCacheBadge])
 
   const toggleGroup = useCallback((g: GroupId) => {
     setGroups((prev) => {
@@ -68,18 +108,31 @@ export default function App() {
         minScore,
         symbols: search.trim() || undefined,
       })
-      // Scanner tab: active/fresh only
-      const active = res.zones.filter((z) => !z.status || z.status === 'active')
+      // Backend auto-chains refresh (history=false). Reload active zones from store.
+      let active = res.zones.filter((z) => !z.status || z.status === 'active')
+      try {
+        const stored = await fetchZones({
+          tf,
+          minScore,
+          limit: 300,
+          activeOnly: true,
+          groups,
+        })
+        if (stored.length) active = stored
+      } catch {
+        /* keep scan payload */
+      }
       setZones(sortZones(active.length ? active : res.zones))
       setElapsed(res.elapsed_sec)
       setHasScanned(true)
+      refreshCacheBadge(tf)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setHasScanned(true)
     } finally {
       setScanning(false)
     }
-  }, [tf, groups, minScore, search])
+  }, [tf, groups, minScore, search, refreshCacheBadge])
 
   const visible = useMemo(() => {
     const list = filterZones(zones, {
@@ -92,7 +145,12 @@ export default function App() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <TopNav tab={tab} onTab={setTab} />
+      <TopNav
+        tab={tab}
+        onTab={setTab}
+        cacheAgeLabel={cacheAgeLabel}
+        cacheStale={cacheStale}
+      />
 
       {tab === 'scanner' && (
         <>

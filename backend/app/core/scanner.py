@@ -11,7 +11,7 @@ from ..engine.params import EngineParams, params_for_tf
 from ..engine.types import Zone
 from .cache import read_cache
 from .config import Settings, get_settings
-from .store import connect, dump_json, list_zones, record_run, replace_zones
+from .store import connect, dump_json, list_zones, record_run, upsert_zones
 from .symbols import Instrument, load_instruments
 
 
@@ -164,7 +164,7 @@ def run_scan(
             for tf in tf_list:
                 z_tf = [z for z in all_zones if z.tf == tf]
                 syms = {i.id for i in filtered}
-                replace_zones(conn, z_tf, tf=tf, symbols=syms)
+                upsert_zones(conn, z_tf, tf=tf, symbols=syms, preserve_lifecycle=True)
             record_run(
                 conn,
                 tf=",".join(tf_list),

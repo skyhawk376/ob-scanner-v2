@@ -10,9 +10,13 @@ const TABS: { id: TabId; label: string }[] = [
 export function TopNav({
   tab,
   onTab,
+  cacheAgeLabel,
+  cacheStale,
 }: {
   tab: TabId
   onTab: (t: TabId) => void
+  cacheAgeLabel?: string | null
+  cacheStale?: boolean
 }) {
   return (
     <header className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950/90 px-4 py-3 backdrop-blur">
@@ -43,7 +47,22 @@ export function TopNav({
           ))}
         </nav>
       </div>
-      <div className="hidden text-xs text-zinc-500 sm:block">Kasper-style · scan only</div>
+      <div className="flex items-center gap-3 text-xs">
+        {cacheAgeLabel && (
+          <span
+            title="Âge de la dernière bougie en cache (H1)"
+            className={
+              cacheStale
+                ? 'rounded-full border border-amber-700/60 bg-amber-950/50 px-2.5 py-1 text-amber-200'
+                : 'rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-zinc-400'
+            }
+          >
+            {cacheAgeLabel}
+            {cacheStale ? ' · périmé' : ''}
+          </span>
+        )}
+        <span className="hidden text-zinc-500 sm:inline">Kasper-style · scan only</span>
+      </div>
     </header>
   )
 }

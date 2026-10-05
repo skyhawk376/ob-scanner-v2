@@ -1,6 +1,7 @@
 """Zone lifecycle simulation from OHLC (Active → Touchée → Réaction/Échec/Expirée)."""
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -20,6 +21,28 @@ EXPIRY_BARS = {"H1": 200, "H4": 150, "D": 120, "W": 52}
 MAX_DISTANCE_ATR = 8.0
 
 
+def soft_reaction_r_from_env() -> float:
+    """Soft reaction threshold in R. Default 0.5 ON. Set ENABLE_SOFT_REACTION=false or SOFT_REACTION_R=0 to disable."""
+    flag = os.environ.get("ENABLE_SOFT_REACTION", "true").strip().lower()
+    if flag in ("0", "false", "no", "off"):
+        return 0.0
+    raw = os.environ.get("SOFT_REACTION_R", "0.5").strip()
+    try:
+        v = float(raw)
+    except ValueError:
+        v = 0.5
+    return max(0.0, v)
+
+
+def reaction_r_from_env() -> float:
+    """Primary reaction threshold in R (default 1.0)."""
+    raw = os.environ.get("REACTION_R", "1.0").strip()
+    try:
+        return max(0.01, float(raw))
+    except ValueError:
+        return 1.0
+
+
 @dataclass
 class LifecycleState:
     status: str = STATUS_ACTIVE
@@ -34,6 +57,7 @@ class LifecycleState:
     mae_r: float = 0.0
     bars_since_ob: int = 0
     events: list[str] = field(default_factory=list)
+    reaction_threshold_r: float | None = None  # which R threshold fired
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -67,11 +91,28 @@ def simulate_lifecycle(
     zone: dict[str, Any],
     *,
     now: datetime | None = None,
+    soft_reaction_r: float | None = None,
+    reaction_r: float | None = None,
 ) -> LifecycleState:
-    """Walk candles after OB to classify zone status (PLAN §7)."""
+    """Walk candles after OB to classify zone status (PLAN §7).
+
+    Defaults (UX):
+    - soft reaction at 0.5R ON (ENABLE_SOFT_REACTION / SOFT_REACTION_R)
+    - primary reaction still +1R (or soft if configured lower)
+    - failure only on SL wick/close — NOT close alone beyond distal zone edge
+    - touch bar is evaluated for MFE / reaction (no skip)
+    """
     state = LifecycleState()
     if df is None or df.empty:
         return state
+
+    soft_r = soft_reaction_r_from_env() if soft_reaction_r is None else float(soft_reaction_r)
+    primary_r = reaction_r_from_env() if reaction_r is None else float(reaction_r)
+    # Effective reaction threshold = min of soft and primary when soft enabled
+    thresholds = [primary_r]
+    if soft_r > 0:
+        thresholds.append(soft_r)
+    react_threshold = min(thresholds)
 
     work = df.copy()
     if not isinstance(work.index, pd.DatetimeIndex):
@@ -141,52 +182,54 @@ def simulate_lifecycle(
                 state.touched_session = sess
                 state.star5_at_touch = sess is not None
                 state.events.append("touchee")
-            continue
+                # fall through — evaluate MFE / reaction / SL on touch bar
+            else:
+                continue
 
-        # --- post-touch ---
+        # --- post-touch (including touch bar) ---
         assert touch_i is not None
         if bull:
-            # MFE / MAE in R
             fav = (h[i] - entry) / risk
             adv = (entry - l[i]) / risk
             state.mfe_r = max(state.mfe_r, fav)
             state.mae_r = max(state.mae_r, adv)
-            # SL / distal failure: close below SL or wick through SL
-            if l[i] <= sl or c[i] < zone_lo:
+            # Failure: SL only (wick through SL). Close beyond distal edge alone is NOT échec.
+            if l[i] <= sl:
                 state.status = STATUS_ECHEC
                 state.outcome = STATUS_ECHEC
                 state.failed_at = _ts_iso(index[i])
                 state.events.append("echec")
                 return state
-            # Réaction: +1R or TP1 without failure
             tp1 = zone.get("tp1")
-            hit_1r = h[i] >= entry + risk
+            hit_r = h[i] >= entry + react_threshold * risk
             hit_tp = tp1 is not None and h[i] >= float(tp1)
-            if hit_1r or hit_tp:
+            if hit_r or hit_tp:
                 state.status = STATUS_REACTION
                 state.outcome = STATUS_REACTION
                 state.reacted_at = _ts_iso(index[i])
-                state.events.append("reaction")
+                state.reaction_threshold_r = react_threshold
+                state.events.append("reaction" if react_threshold >= primary_r else "reaction_soft")
                 return state
         else:
             fav = (entry - l[i]) / risk
             adv = (h[i] - entry) / risk
             state.mfe_r = max(state.mfe_r, fav)
             state.mae_r = max(state.mae_r, adv)
-            if h[i] >= sl or c[i] > zone_hi:
+            if h[i] >= sl:
                 state.status = STATUS_ECHEC
                 state.outcome = STATUS_ECHEC
                 state.failed_at = _ts_iso(index[i])
                 state.events.append("echec")
                 return state
             tp1 = zone.get("tp1")
-            hit_1r = l[i] <= entry - risk
+            hit_r = l[i] <= entry - react_threshold * risk
             hit_tp = tp1 is not None and l[i] <= float(tp1)
-            if hit_1r or hit_tp:
+            if hit_r or hit_tp:
                 state.status = STATUS_REACTION
                 state.outcome = STATUS_REACTION
                 state.reacted_at = _ts_iso(index[i])
-                state.events.append("reaction")
+                state.reaction_threshold_r = react_threshold
+                state.events.append("reaction" if react_threshold >= primary_r else "reaction_soft")
                 return state
 
     # end of series
@@ -217,6 +260,8 @@ def merge_lifecycle_into_payload(zone: dict[str, Any], life: LifecycleState) -> 
     out["mfe_r"] = round(life.mfe_r, 3)
     out["mae_r"] = round(life.mae_r, 3)
     out["bars_since_ob"] = life.bars_since_ob
+    if life.reaction_threshold_r is not None:
+        out["reaction_threshold_r"] = life.reaction_threshold_r
     # resolve pending ★5 at touch
     if life.star5_at_touch and out.get("star5_pending"):
         out["star5_session"] = True

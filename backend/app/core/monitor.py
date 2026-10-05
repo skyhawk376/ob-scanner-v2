@@ -233,14 +233,21 @@ def compute_stats(
     decided = reacted + failed
     reaction_rate = (len(reacted) / len(decided)) if decided else None
 
-    def bucket(key_fn):
+    def bucket(key_fn, *, touched_only: bool = False):
+        """N = touched count when touched_only (stats denominators for Réaction tab)."""
         c: Counter = Counter()
         r: Counter = Counter()
         f: Counter = Counter()
+        tch: Counter = Counter()
         for z in zones:
             k = key_fn(z)
             st = z.get("status") or "active"
+            is_touched = st in (STATUS_TOUCHEE, STATUS_REACTION, STATUS_ECHEC)
+            if touched_only and not is_touched:
+                continue
             c[k] += 1
+            if is_touched:
+                tch[k] += 1
             if st == STATUS_REACTION:
                 r[k] += 1
             if st == STATUS_ECHEC:
@@ -248,23 +255,32 @@ def compute_stats(
         out = {}
         for k in sorted(c.keys()):
             dec = r[k] + f[k]
+            n_base = tch[k] if touched_only else c[k]
             out[k] = {
-                "n": c[k],
+                "n": n_base,
+                "n_all": c[k],
+                "touched": tch[k],
                 "reaction": r[k],
                 "echec": f[k],
                 "reaction_rate": (r[k] / dec) if dec else None,
+                "reaction_rate_touched": (r[k] / tch[k]) if tch[k] else None,
             }
         return out
 
+    decided_n = len(decided)
     return {
         "n": len(zones),
         "by_status": dict(by_status),
         "n_touched": len(touched),
         "n_reaction": len(reacted),
         "n_echec": len(failed),
+        "n_decided": decided_n,
         "reaction_rate": reaction_rate,
-        "by_tf": bucket(lambda z: z.get("tf") or "?"),
-        "by_score": bucket(lambda z: str(z.get("score") or "?")),
-        "by_group": bucket(lambda z: gmap.get(z.get("symbol", ""), "?")),
-        "by_session": bucket(lambda z: z.get("touched_session") or z.get("session_label") or "—"),
+        "reaction_rate_touched": (len(reacted) / len(touched)) if touched else None,
+        "denominator": "decided (réaction+échec)",
+        "by_tf": bucket(lambda z: z.get("tf") or "?", touched_only=True),
+        "by_score": bucket(lambda z: str(z.get("score") or "?"), touched_only=True),
+        "by_group": bucket(lambda z: gmap.get(z.get("symbol", ""), "?"), touched_only=True),
+        # Session at touch only — use touched_session (same as TouchesTab)
+        "by_session": bucket(lambda z: z.get("touched_session") or "—", touched_only=True),
     }

@@ -116,9 +116,9 @@ ou le contenu d’origine de `/home/skyhawk376/ob-scanner/wsgi.py`, puis **Reloa
 
 | Fichier | Rôle |
 |---|---|
-| `wsgi.py` | `ASGIMiddleware(FastAPI)` → `application` |
+| `wsgi.py` | WSGI pur (comme v1) → `application` |
 | `frontend/dist/` | Build prod (commité) servi par FastAPI StaticFiles |
-| `requirements.txt` | Inclut `a2wsgi` |
+| `requirements-pa.txt` | Slim free PA (pas yfinance/pyarrow) |
 | `data/cache/`, `data/results/` | Créés au démarrage si absents |
 
 ## Ne pas faire
@@ -126,3 +126,45 @@ ou le contenu d’origine de `/home/skyhawk376/ob-scanner/wsgi.py`, puis **Reloa
 - Ne pas écraser le dossier `~/ob-scanner` (v1).  
 - Ne pas committer `.env` / tokens.  
 - MCP stdio n’a pas de sens sur PA web ; garder MCP en local.
+
+
+---
+
+## 7. Cron / refresh lifecycle (scheduler OFF)
+
+Sur free PA : **`ENABLE_SCHEDULER=false`** (défaut). Pas de fetch live Yahoo fiable.
+
+### Flux recommandé
+
+1. **Chez toi** (machine avec Yahoo/OANDA) :
+   ```bash
+   cd ob-scanner-v2 && source .venv/bin/activate
+   python scripts/fetch_candles.py --tf H1 --quiet
+   # optionnel : tar czf cache.tgz -C data cache
+   ```
+2. **Upload** `data/cache/` vers `~/ob-scanner-v2/data/cache/` (Files / scp / `ob-seed-cache.tgz`).
+3. **Sur PA** (Bash console ou Scheduled task) :
+   ```bash
+   cd ~/ob-scanner-v2 && source .venv/bin/activate
+   # après chaque upload de bougies :
+   python scripts/refresh_status.py --tf H1
+   # 1× / jour pour backfill Touches + Réaction :
+   python scripts/refresh_status.py --tf H1 --history
+   # ou :
+   bash scripts/pa_cron_refresh.sh H1 refresh
+   bash scripts/pa_cron_refresh.sh H1 history
+   ```
+
+`POST /fetch` répond **501** sous le WSGI PA (évite de gonfler le disque / deps manquantes).  
+`POST /scan` enchaîne automatiquement un `refresh` (`history=false`) pour peupler le cycle de vie.  
+Les boutons **Rafraîchir le cycle de vie** / **Recalculer stats** restent actifs (`history=true`).
+
+Badge UI : âge de la dernière bougie H1 (`GET /cache-status`, aussi dans `/health`).
+
+### Mise à jour code
+
+```bash
+cd ~/ob-scanner-v2 && git pull
+# si frontend a changé : le dist est commité — pas besoin de npm sur PA
+# Reload vert dans l’onglet Web
+```

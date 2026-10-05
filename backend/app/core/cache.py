@@ -157,3 +157,58 @@ def resample_ohlc(df: pd.DataFrame, rule: str) -> pd.DataFrame:
         }
     )
     return agg.dropna(subset=["open", "high", "low", "close"])
+
+
+def cache_freshness(cache_dir: Path, tf: str = "H1", sample_limit: int = 40) -> dict:
+    """Return last candle time across cache files for a TF (for UI stale badge).
+
+    Scans up to sample_limit files matching *_TF.pkl / *_TF.parquet.
+    """
+    from datetime import datetime, timezone
+
+    cache_dir = Path(cache_dir)
+    if not cache_dir.is_dir():
+        return {"tf": tf, "last_candle": None, "age_sec": None, "n_files": 0, "symbol": None}
+
+    tf_u = tf.upper()
+    files = sorted(
+        list(cache_dir.glob(f"*_{tf_u}.pkl")) + list(cache_dir.glob(f"*_{tf_u}.parquet"))
+    )
+    best_ts = None
+    best_sym = None
+    checked = 0
+    for path in files[: max(1, sample_limit)]:
+        checked += 1
+        try:
+            if path.suffix == ".parquet":
+                df = pd.read_parquet(path)
+            else:
+                df = _read_file(path)
+            df = normalize_ohlc(df)
+            if df.empty:
+                continue
+            ts = df.index[-1]
+            if best_ts is None or ts > best_ts:
+                best_ts = ts
+                # stem like XAUUSD_H1
+                best_sym = path.stem.rsplit("_", 1)[0]
+        except Exception:
+            continue
+
+    if best_ts is None:
+        return {"tf": tf_u, "last_candle": None, "age_sec": None, "n_files": checked, "symbol": None}
+
+    if getattr(best_ts, "tzinfo", None) is None:
+        best_ts = best_ts.tz_localize("UTC")
+    else:
+        best_ts = best_ts.tz_convert("UTC")
+    now = datetime.now(timezone.utc)
+    age = (now - best_ts.to_pydatetime()).total_seconds()
+    return {
+        "tf": tf_u,
+        "last_candle": best_ts.isoformat(),
+        "age_sec": int(age),
+        "n_files": checked,
+        "n_total": len(files),
+        "symbol": best_sym,
+    }

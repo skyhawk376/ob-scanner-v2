@@ -7,22 +7,37 @@ function pct(r: number | null | undefined) {
   return `${(r * 100).toFixed(1)} %`
 }
 
+function fmtTs(s?: string | null) {
+  if (!s) return '—'
+  try {
+    return new Date(s).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })
+  } catch {
+    return s
+  }
+}
+
 export function ReactionTab({ tf }: { tf: Timeframe }) {
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [zones, setZones] = useState<Zone[]>([])
+  const [pending, setPending] = useState<Zone[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const load = async () => {
     setLoading(true)
     try {
-      const [s, z] = await Promise.all([
+      const [s, z, p] = await Promise.all([
         fetchStats(tf),
-        fetchZones({ tf, minScore: 1, limit: 300, statuses: 'reaction,echec' }),
+        fetchZones({ tf, minScore: 1, limit: 500, statuses: 'reaction,echec' }),
+        fetchZones({ tf, minScore: 1, limit: 500, statuses: 'touchee' }),
       ])
       setStats(s)
-      z.sort((a, b) => (b.reacted_at || b.failed_at || '').localeCompare(a.reacted_at || a.failed_at || ''))
+      z.sort((a, b) =>
+        (b.reacted_at || b.failed_at || '').localeCompare(a.reacted_at || a.failed_at || ''),
+      )
       setZones(z)
+      p.sort((a, b) => (b.touched_at || '').localeCompare(a.touched_at || ''))
+      setPending(p)
     } finally {
       setLoading(false)
     }
@@ -48,7 +63,7 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
         <div>
           <h2 className="text-lg font-semibold">Réaction</h2>
           <p className="text-xs text-zinc-500">
-            +1R sans SL = réaction · clôture / wick au-delà du SL = échec
+            Soft +0,5R (défaut) ou +1R sans SL = réaction · wick/clôture au SL uniquement = échec
           </p>
         </div>
         <button
@@ -66,23 +81,66 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
       ) : (
         <>
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard label="Zones suivies" value={String(stats.n)} />
-            <StatCard label="Touchées" value={String(stats.n_touched)} />
-            <StatCard label="Réactions" value={String(stats.n_reaction)} accent="text-emerald-400" />
+            <StatCard label="Zones en base" value={String(stats.n)} sub="toutes" />
             <StatCard
-              label="Taux de réaction"
+              label="Touchées (dénominateur)"
+              value={String(stats.n_touched)}
+              sub="base des stats"
+            />
+            <StatCard
+              label="Réactions"
+              value={String(stats.n_reaction)}
+              accent="text-emerald-400"
+              sub={`${pending.length} en attente`}
+            />
+            <StatCard
+              label="Taux (parmi décidés)"
               value={pct(stats.reaction_rate)}
-              sub={`${stats.n_echec} échecs`}
+              sub={`${stats.n_echec} échecs · ${stats.n_decided ?? stats.n_reaction + stats.n_echec} décidés · touchés ${pct(stats.reaction_rate_touched)}`}
               accent="text-blue-300"
             />
           </div>
 
           <div className="mb-6 grid gap-3 md:grid-cols-2">
-            <BucketTable title="Par groupe" data={stats.by_group} />
-            <BucketTable title="Par score" data={stats.by_score} />
-            <BucketTable title="Par TF" data={stats.by_tf} />
-            <BucketTable title="Par session (touch)" data={stats.by_session} />
+            <BucketTable title="Par groupe (N = touchées)" data={stats.by_group} />
+            <BucketTable title="Par score (N = touchées)" data={stats.by_score} />
+            <BucketTable title="Par TF (N = touchées)" data={stats.by_tf} />
+            <BucketTable title="Par session au touch (N = touchées)" data={stats.by_session} />
           </div>
+
+          <h3 className="mb-2 text-sm font-medium text-zinc-300">
+            En attente de réaction ({pending.length})
+          </h3>
+          {pending.length === 0 ? (
+            <p className="mb-6 text-sm text-zinc-500">Aucune zone touchée en cours pour {tf}.</p>
+          ) : (
+            <div className="mb-6 overflow-hidden rounded-xl border border-amber-900/40">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-zinc-900 text-xs uppercase text-zinc-500">
+                  <tr>
+                    <th className="px-3 py-2">Symbole</th>
+                    <th className="px-3 py-2">★</th>
+                    <th className="px-3 py-2">Touché</th>
+                    <th className="px-3 py-2">Session</th>
+                    <th className="px-3 py-2">MFE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pending.slice(0, 80).map((z) => (
+                    <tr key={z.id} className="border-t border-zinc-800/80">
+                      <td className="px-3 py-2 font-medium">
+                        {z.symbol} <span className="text-zinc-500">{z.tf}</span>
+                      </td>
+                      <td className="px-3 py-2 text-amber-400">{z.score}★</td>
+                      <td className="px-3 py-2 text-zinc-400">{fmtTs(z.touched_at)}</td>
+                      <td className="px-3 py-2 text-zinc-500">{z.touched_session || '—'}</td>
+                      <td className="px-3 py-2 text-zinc-400">{z.mfe_r?.toFixed(2) ?? '—'}R</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <h3 className="mb-2 text-sm font-medium text-zinc-300">Détail réaction / échec</h3>
           {zones.length === 0 ? (
@@ -96,7 +154,7 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
                     <th className="px-3 py-2">Résultat</th>
                     <th className="px-3 py-2">★</th>
                     <th className="px-3 py-2">MFE / MAE</th>
-                    <th className="px-3 py-2">Session</th>
+                    <th className="px-3 py-2">Session (touch)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -118,9 +176,7 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
                       <td className="px-3 py-2 text-zinc-400">
                         {z.mfe_r?.toFixed(2) ?? '—'}R / {z.mae_r?.toFixed(2) ?? '—'}R
                       </td>
-                      <td className="px-3 py-2 text-zinc-500">
-                        {z.touched_session || z.session_label || '—'}
-                      </td>
+                      <td className="px-3 py-2 text-zinc-500">{z.touched_session || '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -158,7 +214,16 @@ function BucketTable({
   data,
 }: {
   title: string
-  data: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null }>
+  data: Record<
+    string,
+    {
+      n: number
+      reaction: number
+      echec: number
+      reaction_rate: number | null
+      reaction_rate_touched?: number | null
+    }
+  >
 }) {
   const rows = Object.entries(data)
   return (
@@ -171,10 +236,10 @@ function BucketTable({
           <thead className="text-zinc-500">
             <tr>
               <th className="py-1 text-left">Clé</th>
-              <th className="py-1 text-right">N</th>
+              <th className="py-1 text-right">N touch.</th>
               <th className="py-1 text-right">Réac.</th>
               <th className="py-1 text-right">Échec</th>
-              <th className="py-1 text-right">Taux</th>
+              <th className="py-1 text-right">Taux déc.</th>
             </tr>
           </thead>
           <tbody>

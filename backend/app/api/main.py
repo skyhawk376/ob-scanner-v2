@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from ..core.cache import read_cache
+from ..core.cache import cache_freshness, read_cache
 from ..core.config import get_settings
 from ..core.fetcher import fetch_all
 from ..core.monitor import compute_stats, refresh_statuses
@@ -77,6 +77,7 @@ def health():
         by_group = count_by_group(instruments)
     except Exception as e:
         return {"status": "degraded", "phase": "P5", "error": str(e)}
+    cache_info = cache_freshness(settings.cache_dir, "H1")
     return {
         "status": "ok",
         "phase": "P5",
@@ -86,7 +87,10 @@ def health():
         "telegram_configured": settings.telegram_configured,
         "telegram_dry_run": settings.telegram_dry_run or not settings.telegram_configured,
         "cache_dir": str(settings.cache_dir),
+        "cache_last_candle": cache_info.get("last_candle"),
+        "cache_age_sec": cache_info.get("age_sec"),
         "tz": settings.tz,
+        "scheduler": bool(settings.enable_scheduler),
     }
 
 
@@ -114,6 +118,20 @@ def fetch_endpoint(
     group: str | None = Query(None),
     limit: int = Query(500, ge=50, le=5000),
 ):
+    """Fetch candles (local / Docker). On PythonAnywhere free WSGI this returns 501 — use console cron."""
+    import os
+
+    if os.environ.get("PA_DISABLE_FETCH", "").lower() in ("1", "true", "yes") or (
+        os.environ.get("ENABLE_SCHEDULER", "false").lower() in ("0", "false")
+        and "pythonanywhere" in os.environ.get("HOME", "").lower()
+    ):
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "Fetch désactivé sur PA free. "
+                "scripts/fetch_candles.py en local → upload cache → refresh_status.py --tf H1"
+            ),
+        )
     groups = [g.strip() for g in group.split(",")] if group else None
     summary = fetch_all(tfs=[tf], groups=groups, limit=limit, write=True)
     return {
@@ -123,6 +141,12 @@ def fetch_endpoint(
         "elapsed_sec": round(summary.elapsed_sec, 2),
         "by_source": summary.by_source(),
     }
+
+
+@app.get("/cache-status")
+def cache_status(tf: Literal["H1", "H4", "D", "W"] = Query("H1")):
+    settings = get_settings()
+    return cache_freshness(settings.cache_dir, tf)
 
 
 @app.post("/scan")
@@ -143,6 +167,24 @@ def scan_endpoint(
         require_fresh=not include_mitigated,
         persist=True,
     )
+    refresh_meta = None
+    try:
+        rsum = refresh_statuses(
+            tf=tf,
+            history=False,
+            groups=groups,
+            min_score=min_score,
+            notify=False,
+            force_dry_telegram=True,
+        )
+        refresh_meta = {
+            "mode": rsum.mode,
+            "updated": rsum.updated,
+            "by_status": rsum.by_status,
+            "elapsed_sec": round(rsum.elapsed_sec, 2),
+        }
+    except Exception as e:
+        refresh_meta = {"error": str(e)[:300]}
     return {
         "tf": tf,
         "elapsed_sec": round(summary.elapsed_sec, 2),
@@ -150,6 +192,7 @@ def scan_endpoint(
         "symbols_scanned": len(summary.per_symbol),
         "symbols_ok": sum(1 for s in summary.per_symbol if s.ok),
         "zones": [z.to_dict() for z in summary.zones],
+        "refresh": refresh_meta,
     }
 
 
