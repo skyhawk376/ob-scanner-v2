@@ -108,7 +108,7 @@ export function MiniChart({
       styleOverlay()
     }
 
-    const placeOverlay = (barWidth: number, tAnchor: number) => {
+    const placeOverlay = (barWidth: number, tAnchor: number, tEnd?: number) => {
       const yTop = series.priceToCoordinate(zone.high)
       const yBot = series.priceToCoordinate(zone.low)
       if (yTop == null || yBot == null) {
@@ -119,12 +119,21 @@ export function MiniChart({
       const h = Math.max(Math.abs(yBot - yTop), 10)
       const chartW = wrapRef.current?.clientWidth ?? el.clientWidth
       const x = chart.timeScale().timeToCoordinate(tAnchor as Time)
+      // Extend OB box from formation to last candle (or right edge) — long zone like Kasper
+      let xEnd: number | null = null
+      if (tEnd != null) {
+        xEnd = chart.timeScale().timeToCoordinate(tEnd as Time)
+      }
+      if (xEnd == null || !Number.isFinite(xEnd)) {
+        xEnd = chartW - 8
+      }
 
-      // Prefer timed rectangle; fall back to full-width band if time coord missing/off-screen
-      if (x != null && Number.isFinite(x) && chartW > 0 && x >= -20 && x <= chartW + 20) {
-        const w = Math.max(barWidth * 6, 40)
+      if (x != null && Number.isFinite(x) && chartW > 0 && x >= -40 && x <= chartW + 40) {
+        const left = Math.max(0, x - Math.max(barWidth * 0.4, 2))
+        const right = Math.max(left + Math.max(barWidth * 8, 80), Math.min(chartW - 4, xEnd + barWidth))
+        const w = Math.max(right - left, 80)
         overlay.style.display = 'flex'
-        overlay.style.left = `${Math.max(0, Math.min(chartW - w, x - 2))}px`
+        overlay.style.left = `${left}px`
         overlay.style.right = 'auto'
         overlay.style.top = `${top}px`
         overlay.style.width = `${w}px`
@@ -178,7 +187,8 @@ export function MiniChart({
           chart.timeScale().setVisibleLogicalRange({ from, to })
         }
 
-        const redraw = () => placeOverlay(barWidth, tAnchor)
+        const tEnd = candles[candles.length - 1].time
+        const redraw = () => placeOverlay(barWidth, tAnchor, tEnd)
         // Two frames: logical range + layout settle before measuring coords
         requestAnimationFrame(() => requestAnimationFrame(redraw))
         chart.timeScale().subscribeVisibleLogicalRangeChange(redraw)
