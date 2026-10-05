@@ -44,7 +44,7 @@ export async function runScan(opts: {
   const q = new URLSearchParams()
   q.set('tf', opts.tf)
   q.set('min_score', String(opts.minScore ?? 4))
-  if (opts.groups && opts.groups.length > 0 && opts.groups.length < 5) {
+  if (opts.groups && opts.groups.length > 0) {
     q.set('group', opts.groups.join(','))
   }
   if (opts.symbols?.trim()) {
@@ -66,7 +66,7 @@ export async function fetchZones(opts: {
   if (opts.tf) q.set('tf', opts.tf)
   q.set('min_score', String(opts.minScore ?? 4))
   q.set('limit', String(opts.limit ?? 200))
-  if (opts.groups && opts.groups.length > 0 && opts.groups.length < 5) {
+  if (opts.groups && opts.groups.length > 0) {
     q.set('group', opts.groups.join(','))
   }
   if (opts.status) q.set('status', opts.status)
@@ -98,7 +98,7 @@ export async function refreshStatuses(opts: {
   q.set('history', opts.history ? 'true' : 'false')
   q.set('min_score', String(opts.minScore ?? 4))
   q.set('dry_run', 'true')
-  if (opts.groups && opts.groups.length > 0 && opts.groups.length < 5) {
+  if (opts.groups && opts.groups.length > 0) {
     q.set('group', opts.groups.join(','))
   }
   return postJson(`/refresh?${q.toString()}`)

@@ -9,11 +9,11 @@ const TFS: { id: Timeframe; label: string }[] = [
 ]
 
 const GROUPS: { id: GroupId; label: string }[] = [
-  { id: 'NQ100', label: 'NQ100' },
   { id: 'METAUX', label: 'Métaux' },
-  { id: 'ENERGIE', label: 'Énergie' },
   { id: 'FOREX', label: 'Forex' },
   { id: 'CRYPTO', label: 'Crypto' },
+  { id: 'ENERGIE', label: 'Énergie' },
+  { id: 'NQ100', label: 'NQ100' },
 ]
 
 function Chip({

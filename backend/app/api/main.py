@@ -255,7 +255,7 @@ def fetch_endpoint(
         return JSONResponse(
             status_code=202, content={"started": True, "tf": tf, "status": "/jobs/status"}
         )
-    groups = [g.strip() for g in group.split(",")] if group else None
+    groups = get_settings().resolved_scan_groups(group)
     summary = fetch_all(tfs=[tf], groups=groups, limit=limit, write=True)
     return {
         "tf": tf,
@@ -287,7 +287,7 @@ def scan_endpoint(
     min_score: int = Query(4, ge=1, le=5),
     include_mitigated: bool = Query(False),
 ):
-    groups = [g.strip() for g in group.split(",")] if group else None
+    groups = get_settings().resolved_scan_groups(group)
     syms = [s.strip() for s in symbols.split(",")] if symbols else None
     summary = run_scan(
         tfs=[tf],
@@ -390,7 +390,7 @@ def refresh_endpoint(
     notify: bool = Query(True),
     dry_run: bool = Query(True),
 ):
-    groups = [g.strip() for g in group.split(",")] if group else None
+    groups = get_settings().resolved_scan_groups(group)
     summary = refresh_statuses(
         tf=tf,
         history=history,

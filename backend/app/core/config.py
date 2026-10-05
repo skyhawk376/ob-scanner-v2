@@ -56,6 +56,15 @@ class Settings(BaseSettings):
     # Stale threshold reported by /health (fetch every 15 min → >3h = something is wrong)
     health_stale_sec: int = 3 * 3600
 
+    # Soft reaction (also read directly in lifecycle via env); documented here for Settings.
+    enable_soft_reaction: bool = False
+    soft_reaction_r: float = 0.5
+    reaction_r: float = 1.0
+
+    # Pipeline / API default groups when `group` omitted. "ALL" = every group (incl. NQ100).
+    # UI can still enable NQ100 / ENERGIE explicitly.
+    default_scan_groups: str = "METAUX,FOREX,CRYPTO"
+
     @property
     def oanda_base_url(self) -> str:
         if self.oanda_api_url:
@@ -79,6 +88,24 @@ class Settings(BaseSettings):
     @property
     def telegram_log_path(self) -> Path:
         return Path(self.results_dir) / "telegram_dryrun.log"
+
+
+    def resolved_scan_groups(self, group: str | list[str] | None = None) -> list[str] | None:
+        """Resolve scan/fetch group filter.
+
+        - None / "" → default_scan_groups (METAUX,FOREX,CRYPTO unless overridden)
+        - "ALL" → None (no filter = all symbols.yaml groups, including NQ100)
+        - comma list or list → that set
+        """
+        if isinstance(group, (list, tuple, set)):
+            parts = [str(g).strip().upper() for g in group if str(g).strip()]
+        elif group is None or (isinstance(group, str) and not group.strip()):
+            parts = [g.strip().upper() for g in self.default_scan_groups.split(",") if g.strip()]
+        else:
+            parts = [g.strip().upper() for g in str(group).split(",") if g.strip()]
+        if not parts or parts == ["ALL"]:
+            return None
+        return parts
 
 
 @lru_cache

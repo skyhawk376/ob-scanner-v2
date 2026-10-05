@@ -22,8 +22,11 @@ MAX_DISTANCE_ATR = 8.0
 
 
 def soft_reaction_r_from_env() -> float:
-    """Soft reaction threshold in R. Default 0.5 ON. Set ENABLE_SOFT_REACTION=false or SOFT_REACTION_R=0 to disable."""
-    flag = os.environ.get("ENABLE_SOFT_REACTION", "true").strip().lower()
+    """Soft reaction threshold in R. Default OFF (exit at +1R / opposing liquidity).
+
+    Set ENABLE_SOFT_REACTION=true and SOFT_REACTION_R=0.5 to re-enable soft exit.
+    """
+    flag = os.environ.get("ENABLE_SOFT_REACTION", "false").strip().lower()
     if flag in ("0", "false", "no", "off"):
         return 0.0
     raw = os.environ.get("SOFT_REACTION_R", "0.5").strip()
@@ -96,9 +99,9 @@ def simulate_lifecycle(
 ) -> LifecycleState:
     """Walk candles after OB to classify zone status (PLAN §7).
 
-    Defaults (UX):
-    - soft reaction at 0.5R ON (ENABLE_SOFT_REACTION / SOFT_REACTION_R)
-    - primary reaction still +1R (or soft if configured lower)
+    Defaults (strategy):
+    - soft reaction OFF (ENABLE_SOFT_REACTION=false) → exit at +1R / opposing liquidity
+    - set ENABLE_SOFT_REACTION=true for soft 0.5R early exit
     - failure only on SL wick/close — NOT close alone beyond distal zone edge
     - touch bar is evaluated for MFE / reaction (no skip)
     """

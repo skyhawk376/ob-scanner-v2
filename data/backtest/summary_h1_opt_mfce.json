@@ -1,0 +1,465 @@
+{
+  "meta": {
+    "generated_at": "2026-10-05T21:14:31.382466+02:00",
+    "cache_dir": "/workspace/ob-scanner-v2/data/cache",
+    "tf": "H1",
+    "min_score": 5,
+    "soft_reaction_r": 0.0,
+    "reaction_r": 1.0,
+    "n_symbols": 53,
+    "n_with_data": 53,
+    "elapsed_sec": 58.8,
+    "summary": {
+      "signals": 43,
+      "closed": 30,
+      "opens": 13,
+      "wins": 24,
+      "losses": 6,
+      "winrate": 0.8,
+      "avg_r": 0.6,
+      "sum_r": 18.0,
+      "expectancy": 0.6,
+      "max_dd": 3.0,
+      "profit_factor": 4.0
+    }
+  },
+  "coverage": [
+    {
+      "symbol": "COPPER",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-14 18:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "XAGUSD",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-16 22:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "XAUUSD",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-14 21:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "XPDUSD",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-14 18:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "XPTUSD",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-14 19:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "ADA",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "AUDCAD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "AUDCHF",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "AUDJPY",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "AUDNZD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "AUDUSD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "AVAX",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "BCH",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "BNB",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "BRENT",
+      "group": "ENERGIE",
+      "bars": 800,
+      "from": "2026-08-14 17:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "BTC",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "CADCHF",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "CADJPY",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "CHFJPY",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 03:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "DOGE",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "DOT",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "ETH",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "EURAUD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "EURCAD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 05:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "EURCHF",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "EURGBP",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "EURJPY",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "EURNZD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 05:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "EURUSD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "GBPAUD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "GBPCAD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "GBPCHF",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "GBPJPY",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 03:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "GBPNZD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "GBPUSD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "HEATOIL",
+      "group": "ENERGIE",
+      "bars": 800,
+      "from": "2026-08-14 18:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "LINK",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "LTC",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "NATGAS",
+      "group": "ENERGIE",
+      "bars": 800,
+      "from": "2026-08-16 22:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "NZDCAD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "NZDCHF",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "NZDJPY",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 04:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "NZDUSD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 05:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "RBOB",
+      "group": "ENERGIE",
+      "bars": 800,
+      "from": "2026-08-14 19:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "SOL",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "SUI",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "TON",
+      "group": "CRYPTO",
+      "bars": 1300,
+      "from": "2026-05-27 19:00:00+00:00",
+      "to": "2026-10-05 08:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "TRX",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "USDCAD",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 05:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "USDCHF",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-18 22:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "USDJPY",
+      "group": "FOREX",
+      "bars": 800,
+      "from": "2026-08-19 01:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "WTI",
+      "group": "ENERGIE",
+      "bars": 800,
+      "from": "2026-08-14 19:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "XRP",
+      "group": "CRYPTO",
+      "bars": 800,
+      "from": "2026-09-02 11:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    }
+  ],
+  "summary": {
+    "signals": 43,
+    "closed": 30,
+    "opens": 13,
+    "wins": 24,
+    "losses": 6,
+    "winrate": 0.8,
+    "avg_r": 0.6,
+    "sum_r": 18.0,
+    "expectancy": 0.6,
+    "max_dd": 3.0,
+    "profit_factor": 4.0
+  }
+}

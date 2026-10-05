@@ -1,0 +1,81 @@
+{
+  "meta": {
+    "generated_at": "2026-10-05T20:54:02.452764+02:00",
+    "cache_dir": "/workspace/ob-scanner-v2/data/cache",
+    "tf": "H1",
+    "min_score": 5,
+    "soft_reaction_r": 0.5,
+    "reaction_r": 1.0,
+    "n_symbols": 5,
+    "n_with_data": 5,
+    "elapsed_sec": 23.4,
+    "summary": {
+      "signals": 8,
+      "closed": 5,
+      "opens": 3,
+      "wins": 5,
+      "losses": 0,
+      "winrate": 1.0,
+      "avg_r": 0.5,
+      "sum_r": 2.5,
+      "expectancy": 0.5,
+      "max_dd": 0.0,
+      "profit_factor": Infinity
+    }
+  },
+  "coverage": [
+    {
+      "symbol": "COPPER",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-14 18:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "XAGUSD",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-16 22:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "XAUUSD",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-14 21:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "XPDUSD",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-14 18:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    },
+    {
+      "symbol": "XPTUSD",
+      "group": "METAUX",
+      "bars": 800,
+      "from": "2026-08-14 19:00:00+00:00",
+      "to": "2026-10-05 18:00:00+00:00",
+      "error": null
+    }
+  ],
+  "summary": {
+    "signals": 8,
+    "closed": 5,
+    "opens": 3,
+    "wins": 5,
+    "losses": 0,
+    "winrate": 1.0,
+    "avg_r": 0.5,
+    "sum_r": 2.5,
+    "expectancy": 0.5,
+    "max_dd": 0.0,
+    "profit_factor": Infinity
+  }
+}

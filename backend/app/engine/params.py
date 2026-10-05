@@ -39,7 +39,7 @@ class EngineParams:
     session_at_touch_tfs: tuple[str, ...] = ("H4", "D", "W")
     # Lifecycle reaction sensitivity (also overridable via env SOFT_REACTION_R / ENABLE_SOFT_REACTION)
     reaction_r: float = 1.0
-    soft_reaction_r: float = 0.5  # 0 = disable soft; default 0.5R ON
+    soft_reaction_r: float = 0.0  # 0 = soft OFF (default); set 0.5 when ENABLE_SOFT_REACTION=true
 
 
 def params_for_tf(tf: str) -> EngineParams:

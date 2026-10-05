@@ -10,7 +10,8 @@ import { fetchCacheStatus, fetchZones, health, runScan } from './lib/api'
 import { filterZones, sortZones } from './lib/sortZones'
 import type { GroupId, TabId, Timeframe, Zone } from './lib/types'
 
-const ALL_GROUPS: GroupId[] = ['NQ100', 'METAUX', 'ENERGIE', 'FOREX', 'CRYPTO']
+// Default scan: METAUX / FOREX / CRYPTO (NQ100 + ENERGIE off; toggle in UI to enable)
+const DEFAULT_GROUPS: GroupId[] = ['METAUX', 'FOREX', 'CRYPTO']
 
 function formatCacheAge(ageSec: number | null | undefined, lastCandle?: string | null): string | null {
   if (ageSec == null && !lastCandle) return null
@@ -25,7 +26,7 @@ function formatCacheAge(ageSec: number | null | undefined, lastCandle?: string |
 export default function App() {
   const [tab, setTab] = useState<TabId>('scanner')
   const [tf, setTf] = useState<Timeframe>('H1')
-  const [groups, setGroups] = useState<GroupId[]>([...ALL_GROUPS])
+  const [groups, setGroups] = useState<GroupId[]>([...DEFAULT_GROUPS])
   const [search, setSearch] = useState('')
   const [minScore, setMinScore] = useState(4)
   const [zones, setZones] = useState<Zone[]>([])

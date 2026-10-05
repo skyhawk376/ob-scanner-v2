@@ -95,7 +95,7 @@ def tool_scan_now(tf: str = "H1", group: str | None = None, min_stars: int = 4) 
     tf = tf.upper()
     if tf not in ("H1", "H4", "D", "W"):
         return _json({"error": f"unsupported tf {tf}"})
-    groups = [g.strip() for g in group.split(",")] if group else None
+    groups = get_settings().resolved_scan_groups(group)
     summary = run_scan(
         tfs=[tf],
         groups=groups,

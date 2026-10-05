@@ -18,9 +18,10 @@ kill_timeout = "30s"
   FETCH_TFS = "H1"
   FETCH_LIMIT = "300"
   TELEGRAM_DRY_RUN = "true"
-  ENABLE_SOFT_REACTION = "true"
+  ENABLE_SOFT_REACTION = "false"
   SOFT_REACTION_R = "0.5"
   REACTION_R = "1.0"
+  DEFAULT_SCAN_GROUPS = "METAUX,FOREX,CRYPTO"
 
 # Persistent cache + SQLite (1 GB is plenty: full cache ≈ 10–20 MB)
 [mounts]

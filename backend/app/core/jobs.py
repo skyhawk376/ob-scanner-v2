@@ -56,6 +56,7 @@ def is_running() -> bool:
 def run_pipeline(
     *,
     tfs: list[str] | None = None,
+    groups: list[str] | str | None = None,
     limit: int | None = None,
     fetch: bool = True,
     scan: bool = True,
@@ -71,12 +72,15 @@ def run_pipeline(
         return {"skipped": True, "reason": "pipeline already running", "current": _STATE["current"]}
 
     tf_list = [t.strip().upper() for t in (tfs or settings.fetch_tfs.split(",")) if t.strip()]
+    # None → DEFAULT_SCAN_GROUPS (NQ100 off by default); pass groups="ALL" for full universe
+    group_list = settings.resolved_scan_groups(groups)
     lim = int(limit or settings.fetch_limit)
     started = time.time()
     summary: dict[str, Any] = {
         "trigger": trigger,
         "started_at": _now_iso(),
         "tfs": tf_list,
+        "groups": group_list if group_list is not None else "ALL",
         "limit": lim,
         "steps": {},
         "ok": False,
@@ -90,7 +94,7 @@ def run_pipeline(
             else:
                 from .fetcher import fetch_all
 
-                fs = fetch_all(tfs=tf_list, limit=lim, write=True, settings=settings)
+                fs = fetch_all(tfs=tf_list, groups=group_list, limit=lim, write=True, settings=settings)
                 summary["steps"]["fetch"] = {
                     "ok": fs.ok_count,
                     "fail": fs.fail_count,
@@ -106,7 +110,7 @@ def run_pipeline(
             if scan:
                 from .scanner import run_scan
 
-                ss = run_scan(tfs=[tf], persist=True, settings=settings)
+                ss = run_scan(tfs=[tf], groups=group_list, persist=True, settings=settings)
                 summary["steps"][f"scan_{tf}"] = {
                     "zones": len(ss.zones),
                     "symbols_ok": sum(1 for s in ss.per_symbol if s.ok),
@@ -118,6 +122,7 @@ def run_pipeline(
                 rs = refresh_statuses(
                     tf=tf,
                     history=history,
+                    groups=group_list,
                     notify=notify,
                     force_dry_telegram=None,  # honour TELEGRAM_DRY_RUN
                     settings=settings,

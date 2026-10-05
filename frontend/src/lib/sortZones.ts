@@ -22,7 +22,7 @@ export function filterZones(
   if (q) {
     out = out.filter((z) => z.symbol.includes(q))
   }
-  if (opts.groups && opts.groups.length > 0 && opts.groups.length < 5 && opts.groupOf) {
+  if (opts.groups && opts.groups.length > 0 && opts.groupOf) {
     const set = new Set(opts.groups)
     out = out.filter((z) => {
       const g = opts.groupOf!(z.symbol)
