@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+node_modules/
+data/cache/
+data/results/*.sqlite
+data/results/*.json
+data/results/*.log
+data/results/*.png
+*.tar.gz
+.DS_Store
+frontend/dist/

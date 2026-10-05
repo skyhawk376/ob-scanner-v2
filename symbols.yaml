@@ -1,0 +1,30 @@
+# Liste par défaut (~115 instruments). Mapping par source : yf = yfinance, oanda = OANDA v20, bn = Binance spot.
+# NQ100 : composition à réconcilier avec la liste officielle Nasdaq-100 au moment du build (elle change chaque trimestre / en décembre).
+NQ100:
+  index: [{id: NAS100, yf: "^NDX", oanda: NAS100_USD}]
+  stocks: [AAPL, MSFT, NVDA, AMZN, GOOGL, META, AVGO, TSLA, NFLX, COST,
+           AMD, PLTR, ASML, CSCO, TMUS, AZN, LIN, PEP, INTU, ISRG,
+           TXN, QCOM, AMGN, ADBE, BKNG, AMAT, MU, LRCX, KLAC, INTC,
+           PANW, CRWD, GILD, ADP, CMCSA, HON, VRTX, SBUX, MELI, ADI,
+           APP, MSTR, SNPS, CDNS, ORLY, CTAS, MAR, PYPL, ABNB, FTNT,
+           MRVL, REGN, MDLZ, DASH, WDAY, CEG, ROP, ADSK, CSX, PDD, SHOP]
+METAUX:
+  - {id: XAUUSD, oanda: XAU_USD, yf: "GC=F", priority: 1}   # Or = actif prioritaire
+  - {id: XAGUSD, oanda: XAG_USD, yf: "SI=F"}
+  - {id: XPTUSD, oanda: XPT_USD, yf: "PL=F"}
+  - {id: XPDUSD, oanda: XPD_USD, yf: "PA=F"}
+  - {id: COPPER, oanda: XCU_USD, yf: "HG=F"}
+ENERGIE:
+  - {id: WTI,    oanda: WTICO_USD,  yf: "CL=F"}
+  - {id: BRENT,  oanda: BCO_USD,    yf: "BZ=F"}
+  - {id: NATGAS, oanda: NATGAS_USD, yf: "NG=F"}
+  - {id: RBOB,   yf: "RB=F"}
+  - {id: HEATOIL, yf: "HO=F"}
+FOREX:   # 7 majeures + 21 croisées ; oanda: EUR_USD, yf: EURUSD=X
+  [EURUSD, GBPUSD, USDJPY, USDCHF, USDCAD, AUDUSD, NZDUSD,
+   EURGBP, EURJPY, EURCHF, EURCAD, EURAUD, EURNZD,
+   GBPJPY, GBPCHF, GBPCAD, GBPAUD, GBPNZD,
+   AUDJPY, AUDCHF, AUDCAD, AUDNZD,
+   NZDJPY, NZDCHF, NZDCAD, CADJPY, CADCHF, CHFJPY]
+CRYPTO:  # bn: BTCUSDT ; yf: BTC-USD
+  [BTC, ETH, SOL, XRP, BNB, DOGE, ADA, AVAX, LINK, TON, DOT, LTC, BCH, TRX, SUI]

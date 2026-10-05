@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - TZ=Europe/Paris
+      - TELEGRAM_DRY_RUN=${TELEGRAM_DRY_RUN:-true}
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
+    volumes:
+      - ./data:/app/data
+      - ./symbols.yaml:/app/symbols.yaml:ro
