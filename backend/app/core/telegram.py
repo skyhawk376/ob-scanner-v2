@@ -19,6 +19,22 @@ def _stars(score: int) -> str:
     return "★" * int(score) + "☆" * max(0, 5 - int(score))
 
 
+def _tp_1r_levels(zone: dict[str, Any], *, bull: bool) -> tuple[float | None, float | None, float | None]:
+    """Return (entry, sl, tp_at_+1R) for Telegram display.
+
+    Strategy target is +1R (REACTION_R=1.0). Zone.tp1 may be distant opposing
+    liquidity (RR >> 1) — never show that as the trade RR.
+    """
+    entry, sl = zone.get("entry"), zone.get("sl")
+    if not isinstance(entry, (int, float)) or not isinstance(sl, (int, float)):
+        return None, None, None
+    risk = abs(float(entry) - float(sl))
+    if risk <= 0:
+        return float(entry), float(sl), None
+    tp = float(entry) + risk if bull else float(entry) - risk
+    return float(entry), float(sl), tp
+
+
 def format_zone_message(event: str, zone: dict[str, Any]) -> str:
     direction = zone.get("direction", "bull")
     bull = direction == "bull"
@@ -26,14 +42,12 @@ def format_zone_message(event: str, zone: dict[str, Any]) -> str:
     score = int(zone.get("score") or 0)
     sess = zone.get("touched_session") or zone.get("session_label") or "—"
     lo, hi = zone.get("low"), zone.get("high")
-    entry, sl, tp1 = zone.get("entry"), zone.get("sl"), zone.get("tp1")
-    rr = zone.get("rr_tp1")
-    rr_s = f"{rr:.1f}" if isinstance(rr, (int, float)) else "—"
+    entry, sl, tp_1r = _tp_1r_levels(zone, bull=bull)
     # Entry label: mid = milieu OB; proximal = bull haut / bear bas
     entry_mode = (zone.get("entry_mode") or zone.get("meta", {}).get("entry_mode") or "").strip().lower()
     if not entry_mode:
         import os
-        entry_mode = os.environ.get("ENTRY_MODE", "proximal").strip().lower()
+        entry_mode = os.environ.get("ENTRY_MODE", "mid").strip().lower()
     if entry_mode == "mid":
         entry_edge = "milieu OB"
     else:
@@ -45,12 +59,23 @@ def format_zone_message(event: str, zone: dict[str, Any]) -> str:
         "echec": "Invalidation / SL",
         "digest": "Récap",
     }.get(event, event)
+    if entry is None or sl is None:
+        levels = "· Entrée — · SL — · TP(+1R) — (RR —)"
+    elif tp_1r is None:
+        levels = (
+            f"· Entrée {entry:.4g} ({entry_edge}) · SL {sl:.4g} (au-delà bord distal) · "
+            f"TP(+1R) — (RR —)"
+        )
+    else:
+        levels = (
+            f"· Entrée {entry:.4g} ({entry_edge}) · SL {sl:.4g} (au-delà bord distal) · "
+            f"TP(+1R) {tp_1r:.4g} (RR 1.0)"
+        )
     return (
         f"{_stars(score)} {event_fr}\n"
         f"{label} {zone.get('symbol')} {zone.get('tf')}\n"
         f"· {lo:.4g}–{hi:.4g}\n"
-        f"· Entrée {entry:.4g} ({entry_edge}) · SL {sl:.4g} (au-delà bord distal) · "
-        f"TP1 {tp1 if tp1 is None else f'{tp1:.4g}'} (RR {rr_s})\n"
+        f"{levels}\n"
         f"· session {sess}"
     )
 
