@@ -11,3 +11,4 @@ data/results/*.png
 *.tar.gz
 .DS_Store
 frontend/dist/
+bin/cloudflared
