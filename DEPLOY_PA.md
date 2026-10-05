@@ -4,6 +4,8 @@ Compte : **skyhawk376**
 v1 (prototype) : `https://skyhawk376.pythonanywhere.com/` → dossier `/home/skyhawk376/ob-scanner`  
 v2 (ce repo) : à cloner dans `/home/skyhawk376/ob-scanner-v2`
 
+
+> **Note:** v2 utilise un `wsgi.py` **WSGI pur** (comme le v1). `a2wsgi` bloque sous uWSGI de PythonAnywhere.
 > **Free PA = une seule Web app / un seul domaine.**  
 > Pour mettre v2 en ligne sur `skyhawk376.pythonanywhere.com`, il faut **changer le fichier WSGI** pour pointer vers v2.  
 > Le code v1 reste sur le disque et peut être rétabli en 30 s en rebranchant l’ancien WSGI.
