@@ -87,3 +87,4 @@ put /workspace/ob-scanner-v2/data/results/zones.sqlite /data/results/zones.sqlit
 | `FETCH_LIMIT` / `BOOTSTRAP_LIMIT` | `300` / `800` | barres par série |
 | `CACHE_DIR` / `RESULTS_DIR` | `/data/cache` / `/data/results` | sur le volume |
 | `TELEGRAM_DRY_RUN` | `true` | `false` + secrets pour envoyer |
+| `ENTRY_MODE` | `mid` (Fly) / `proximal` (code) | entrée mid legacy vs proximal |

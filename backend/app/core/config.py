@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     # Option B volume (~1 trade/jour ouvré): min stars for scan/pipeline/UI defaults.
     default_min_score: int = 4
 
+    # Entry: proximal (bull=OB high / bear=OB low) | mid (legacy 50% / open)
+    entry_mode: str = "proximal"
+
     @property
     def oanda_base_url(self) -> str:
         if self.oanda_api_url:

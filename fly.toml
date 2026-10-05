@@ -23,6 +23,7 @@ kill_timeout = "30s"
   REACTION_R = "1.0"
   DEFAULT_SCAN_GROUPS = "METAUX,FOREX,CRYPTO"
   DEFAULT_MIN_SCORE = "4"
+  ENTRY_MODE = "mid"
 
 # Persistent cache + SQLite (1 GB is plenty: full cache ≈ 10–20 MB)
 [mounts]

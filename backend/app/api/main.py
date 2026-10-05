@@ -181,6 +181,7 @@ def health():
         "scheduler": bool(settings.enable_scheduler),
         "scheduler_info": _scheduler_info(),
         "fetch_enabled": bool(settings.enable_fetch),
+        "entry_mode": (settings.entry_mode or "proximal").strip().lower(),
         "pipeline": {
             "running": pipeline.get("running"),
             "last_ok": last.get("ok"),

@@ -337,9 +337,10 @@ def _build_zone(
 
     fresh = is_fresh(l, h, ob_i, zone_lo, zone_hi, end=n)
 
-    # Entry at the PROXIMAL OB edge (first edge price reaches on the retrace):
-    #   bull = OB high, bear = OB low.
-    # SL beyond the DISTAL (invalidation) edge + ATR buffer → R ≈ zone height.
+    # Entry modes (ENTRY_MODE / EngineParams.entry_mode):
+    #   "proximal" (code default): bull = OB high, bear = OB low
+    #   "mid": 50% of zone if height > entry_mid_atr * ATR else open (Fly: ENTRY_MODE=mid)
+    # SL beyond the DISTAL (invalidation) edge + ATR buffer.
     # Distal-edge entry (bull=low / bear=high) is intentionally NOT supported:
     # risk collapses to the SL buffer (~0.05 ATR) → fill wick = SL (WR 0 %).
     entry_mode = getattr(params, "entry_mode", "proximal")
@@ -412,7 +413,7 @@ def _build_zone(
         last_close=last_close,
         session_label=session_label,
         sweep=sweep,
-        meta={"eq_liq_behind": eq_liq, "untaken_pivot_behind": untaken},
+        meta={"eq_liq_behind": eq_liq, "untaken_pivot_behind": untaken, "entry_mode": entry_mode},
     )
 
 

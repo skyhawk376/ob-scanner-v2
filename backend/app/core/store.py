@@ -88,8 +88,13 @@ _EXTRA_COLS = {
 
 def connect(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), timeout=30.0)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+    except sqlite3.Error:
+        pass
     conn.executescript(SCHEMA)
     _migrate(conn)
     return conn
@@ -524,6 +529,7 @@ def was_notified(conn: sqlite3.Connection, zone_id: str, event: str) -> bool:
 
 
 def mark_notified(conn: sqlite3.Connection, zone_id: str, event: str) -> None:
+    """Idempotent insert (legacy). Prefer claim_notify for send-path dedupe."""
     now = datetime.now(timezone.utc).isoformat()
     try:
         conn.execute(
@@ -533,6 +539,33 @@ def mark_notified(conn: sqlite3.Connection, zone_id: str, event: str) -> None:
         conn.commit()
     except sqlite3.IntegrityError:
         pass
+
+
+def claim_notify(conn: sqlite3.Connection, zone_id: str, event: str) -> bool:
+    """Atomically claim a (zone_id, event) notify slot before sending.
+
+    Returns True if this caller won the claim (should send). False if already
+    claimed — skips duplicate Telegram sends under concurrent refresh/pipeline.
+    Uses INSERT OR IGNORE + UNIQUE(zone_id, event); BEGIN IMMEDIATE for writer lock.
+    """
+    if not zone_id or not event:
+        return False
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO notify_log (zone_id, event, created_at) VALUES (?,?,?)",
+            (zone_id, event, now),
+        )
+        conn.commit()
+        return cur.rowcount == 1
+    except sqlite3.Error:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        # Fail closed: skip send rather than risk a duplicate Telegram.
+        return False
 
 
 def dump_json(path: Path, zones: Iterable[Any], meta: dict[str, Any] | None = None) -> Path:

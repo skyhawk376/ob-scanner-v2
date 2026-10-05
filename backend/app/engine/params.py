@@ -1,6 +1,7 @@
 """Engine parameters per timeframe (PLAN defaults)."""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 
@@ -45,14 +46,27 @@ class EngineParams:
     soft_reaction_r: float = 0.0  # 0 = soft OFF (default); set 0.5 when ENABLE_SOFT_REACTION=true
 
 
+def entry_mode_from_env() -> str:
+    """ENTRY_MODE env: proximal (default) | mid. Invalid → proximal."""
+    raw = (os.environ.get("ENTRY_MODE") or "proximal").strip().lower()
+    return raw if raw in ("proximal", "mid") else "proximal"
+
+
+def require_entry_fill_for_mode(entry_mode: str | None = None) -> bool:
+    """mid legacy: manage from first zone contact; proximal: wait limit fill at edge."""
+    mode = (entry_mode or entry_mode_from_env()).strip().lower()
+    return mode != "mid"
+
+
 def params_for_tf(tf: str) -> EngineParams:
     tf = tf.upper()
+    mode = entry_mode_from_env()
     if tf in ("H1",):
-        return EngineParams(pivot_n=3, lookback=500)
+        return EngineParams(pivot_n=3, lookback=500, entry_mode=mode)
     if tf in ("H4",):
-        return EngineParams(pivot_n=3, lookback=500)
+        return EngineParams(pivot_n=3, lookback=500, entry_mode=mode)
     if tf in ("D", "1D", "DAILY"):
-        return EngineParams(pivot_n=2, lookback=400)
+        return EngineParams(pivot_n=2, lookback=400, entry_mode=mode)
     if tf in ("W", "1W", "WEEKLY"):
-        return EngineParams(pivot_n=2, lookback=260)
-    return EngineParams()
+        return EngineParams(pivot_n=2, lookback=260, entry_mode=mode)
+    return EngineParams(entry_mode=mode)

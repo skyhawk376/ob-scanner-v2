@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from .config import Settings, get_settings
-from .store import connect, mark_notified, was_notified
+from .store import claim_notify, connect
 
 PARIS = ZoneInfo("Europe/Paris")
 
@@ -29,8 +29,15 @@ def format_zone_message(event: str, zone: dict[str, Any]) -> str:
     entry, sl, tp1 = zone.get("entry"), zone.get("sl"), zone.get("tp1")
     rr = zone.get("rr_tp1")
     rr_s = f"{rr:.1f}" if isinstance(rr, (int, float)) else "—"
-    # Entry at proximal OB edge: bull = haut OB, bear = bas OB; SL beyond distal edge
-    entry_edge = "haut OB" if bull else "bas OB"
+    # Entry label: mid = milieu OB; proximal = bull haut / bear bas
+    entry_mode = (zone.get("entry_mode") or zone.get("meta", {}).get("entry_mode") or "").strip().lower()
+    if not entry_mode:
+        import os
+        entry_mode = os.environ.get("ENTRY_MODE", "proximal").strip().lower()
+    if entry_mode == "mid":
+        entry_edge = "milieu OB"
+    else:
+        entry_edge = "haut OB" if bull else "bas OB"
     event_fr = {
         "new_zone": "Nouvelle zone",
         "touchee": "Premier contact",
@@ -119,12 +126,15 @@ def notify_zone_event(
 
     conn = connect(settings.db_path)
     try:
-        if dedupe and was_notified(conn, zid, event):
+        # Claim BEFORE send (UNIQUE zone_id+event). Prevents duplicate Telegram
+        # when refresh/pipeline overlap — especially reaction events (GBPAUD×3).
+        if dedupe and not claim_notify(conn, zid, event):
             return {"ok": True, "skipped": "duplicate"}
         text = format_zone_message(event, zone)
         result = send_telegram(text, settings=settings, force_dry=force_dry)
-        if result.get("ok") and dedupe:
-            mark_notified(conn, zid, event)
+        # Slot already claimed; keep it on send failure to avoid spam retries.
+        if not result.get("ok") and dedupe:
+            result = {**result, "claimed": True, "note": "notify slot kept after send failure"}
         return result
     finally:
         conn.close()

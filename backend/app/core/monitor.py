@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable
 
 from ..engine.detect import detect_zones
-from ..engine.params import params_for_tf
+from ..engine.params import params_for_tf, require_entry_fill_for_mode
 from .cache import read_cache
 from .config import Settings, get_settings
 from .lifecycle import (
@@ -88,7 +88,9 @@ def refresh_statuses(
                 for z in zones:
                     d = z.to_dict()
                     prev_status = None
-                    life = simulate_lifecycle(df, d)
+                    life = simulate_lifecycle(
+                        df, d, require_entry_fill=require_entry_fill_for_mode()
+                    )
                     merged = merge_lifecycle_into_payload(d, life)
                     payloads.append(merged)
                     summary.transitions.append(
@@ -160,9 +162,13 @@ def refresh_statuses(
                 if df is None or df.empty:
                     continue
                 prev = z.get("status") or STATUS_ACTIVE
-                life = simulate_lifecycle(df, z)
+                life = simulate_lifecycle(
+                    df, z, require_entry_fill=require_entry_fill_for_mode()
+                )
                 merged = merge_lifecycle_into_payload(z, life)
                 update_zone_lifecycle(conn, merged)
+                # Commit per zone so a crash mid-loop cannot re-fire transitions
+                conn.commit()
                 summary.updated += 1
                 if life.status != prev:
                     summary.transitions.append(
@@ -183,7 +189,11 @@ def refresh_statuses(
                             )
                             if n and not n.get("skipped"):
                                 summary.notifications += 1
-                        if life.status == STATUS_REACTION:
+                        # Only notify reaction when entering from active/touchee
+                        if life.status == STATUS_REACTION and prev in (
+                            STATUS_ACTIVE,
+                            STATUS_TOUCHEE,
+                        ):
                             n = notify_zone_event(
                                 "reaction",
                                 merged,
@@ -192,7 +202,10 @@ def refresh_statuses(
                             )
                             if n and not n.get("skipped"):
                                 summary.notifications += 1
-                        if life.status == STATUS_ECHEC:
+                        if life.status == STATUS_ECHEC and prev in (
+                            STATUS_ACTIVE,
+                            STATUS_TOUCHEE,
+                        ):
                             n = notify_zone_event(
                                 "echec",
                                 merged,
@@ -201,7 +214,6 @@ def refresh_statuses(
                             )
                             if n and not n.get("skipped"):
                                 summary.notifications += 1
-            conn.commit()
             summary.n_zones = len(filtered)
             from .store import count_by_status
 
