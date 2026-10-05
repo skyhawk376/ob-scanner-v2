@@ -138,11 +138,11 @@ export function ZoneDetailModal({
               </h3>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <Metric
-                  label={buy ? 'Entrée (bas OB)' : 'Entrée (haut OB)'}
+                  label={buy ? 'Entrée (haut OB)' : 'Entrée (bas OB)'}
                   value={fmt(zone.entry)}
                   color="text-blue-300"
                 />
-                <Metric label="SL (bord opposé)" value={fmt(zone.sl)} color="text-orange-300" />
+                <Metric label="SL (bord distal)" value={fmt(zone.sl)} color="text-orange-300" />
                 <Metric label="TP1" value={fmt(zone.tp1)} color="text-zinc-200" />
                 <Metric label="TP2" value={fmt(zone.tp2)} color="text-zinc-200" />
                 <Metric

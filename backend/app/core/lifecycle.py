@@ -103,7 +103,7 @@ def simulate_lifecycle(
     Defaults (strategy):
     - soft reaction OFF (ENABLE_SOFT_REACTION=false) → exit at +1R / opposing liquidity
     - set ENABLE_SOFT_REACTION=true for soft 0.5R early exit
-    - entry = OB low (bull) / OB high (bear); SL beyond opposite (distal) edge
+    - entry = proximal edge: OB high (bull) / OB low (bear); SL beyond distal edge
     - Touchee = first zone contact; trade mgmt (MFE/SL/reaction) starts at entry fill
     - failure only on SL wick — NOT close alone beyond distal zone edge
     - touch/fill bar is evaluated for MFE / reaction (no skip)
@@ -178,7 +178,7 @@ def simulate_lifecycle(
             return state
 
         intersects = l[i] <= zone_hi and h[i] >= zone_lo
-        # Limit fill at entry: bull wick ≤ OB low / entry; bear wick ≥ OB high / entry
+        # Limit fill at entry (proximal edge): bull wick ≤ OB high; bear wick ≥ OB low
         if bull:
             hit_entry = l[i] <= entry
         else:

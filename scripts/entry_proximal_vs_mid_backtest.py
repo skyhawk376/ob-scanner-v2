@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Config B: new edge entry (bull=OB low / bear=OB high) vs legacy mid entry.
+"""Config B: proximal OB-edge entry (bull=OB high / bear=OB low, SL beyond distal) vs legacy mid entry.
 
 Params: min_score=4, METAUX+FOREX+CRYPTO, soft OFF (+1R), hold≤1 H1 bar.
 """
@@ -293,62 +293,70 @@ def main():
         entry_mode="mid",
         require_entry_fill=False,
     )
-    edge = run_one(
-        tag="vol_B_mfc_s4_hold1_edge",
-        entry_mode="edge",
-        require_entry_fill=True,
-    )
-    proximal = run_one(
-        tag="vol_B_mfc_s4_hold1_edge_proximal",
-        entry_mode="edge_proximal",
+    prox = run_one(
+        tag="vol_B_mfc_s4_hold1_proximal",
+        entry_mode="proximal",
         require_entry_fill=True,
     )
 
     cmp = {
         "generated_at": datetime.now(tz=PARIS).isoformat(),
-        "config": "B min4 M+F+C soft OFF +1R hold≤1",
-        "old_mid": old["summary"],
-        "new_edge": edge["summary"],
-        "alt_proximal": proximal["summary"],
-        "old_meta": old["meta"],
-        "edge_meta": edge["meta"],
-        "proximal_meta": proximal["meta"],
+        "config": "B min4 M+F+C soft OFF +1R hold<=1",
+        "mid": old["summary"],
+        "proximal": prox["summary"],
+        "mid_meta": old["meta"],
+        "proximal_meta": prox["meta"],
+        "mid_by_group": old["by_group"],
+        "proximal_by_group": prox["by_group"],
     }
-    (OUT / "summary_entry_edge_vs_mid.json").write_text(
+    (OUT / "summary_entry_proximal_vs_mid.json").write_text(
         json.dumps(cmp, indent=2, default=str), encoding="utf-8"
     )
 
     def row(label, s):
         return (
-            f"| {label} | {s['closed']} | {vol._fmt_pct(s['winrate'])} | "
-            f"{vol._fmt_r(s['avg_r'])} | {vol._fmt_tpd(s['trades_per_day'])} | "
-            f"{vol._fmt_tpd(s.get('trades_per_weekday'))} |"
+            f"| {label} | {s['signals']} | {s['closed']} | {s['wins']}/{s['losses']} | "
+            f"{vol._fmt_pct(s['winrate'])} | {vol._fmt_r(s['avg_r'])} | {s['sum_r']:.1f} | "
+            f"{s['max_dd']:.1f} | {s['profit_factor']:.2f} | "
+            f"{vol._fmt_tpd(s['trades_per_day'])} | {vol._fmt_tpd(s.get('trades_per_weekday'))} |"
         )
 
-    md = "
-".join(
-        [
-            "# Entrée edge vs mid — config B",
-            "",
-            f"Generated: **{datetime.now(tz=PARIS).strftime('%Y-%m-%d %H:%M %Z')}**",
-            "",
-            "Config B: `min_score=4`, METAUX+FOREX+CRYPTO, soft OFF (+1R), hold≤1 H1.",
-            "",
-            "| Mode | Closed | WR | Avg R | Trades/jour | Trades/jour ouvré |",
-            "|---|---:|---:|---:|---:|---:|",
-            row("OLD mid (legacy)", old["summary"]),
-            row("NEW edge bull=bas OB", edge["summary"]),
-            row("ALT proximal bull=haut OB", proximal["summary"]),
-            "",
-            "- **NEW edge (code)**: entrée bull=bas OB / bear=haut OB ; SL au-delà bord opposé (distal +0,05 ATR).",
-            "- **ALT proximal**: entrée bull=haut / bear=bas ; SL distal (R large).",
-            "- **OLD mid**: entrée mid/open ; gestion dès contact zone.",
-            "",
-        ]
-    )
-    (OUT / "ENTRY_EDGE_VS_MID.md").write_text(md, encoding="utf-8")
+    lines = [
+        "# Entrée proximale vs mid — config B",
+        "",
+        f"Generated: **{datetime.now(tz=PARIS).strftime('%Y-%m-%d %H:%M %Z')}** (Europe/Paris)",
+        "",
+        "Config B: `min_score=4`, METAUX+FOREX+CRYPTO (48 symboles H1), soft OFF (+1R), hold≤1 H1, OB vierge + FVG.",
+        "",
+        "| Mode | Signaux | Fermés | W/L | WR | Avg R | Sum R | Max DD | PF | Trades/jour | Trades/jour ouvré |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        row("mid (legacy)", old["summary"]),
+        row("**proximal (live)** bull=haut OB / bear=bas OB", prox["summary"]),
+        "",
+        "## Par groupe",
+        "",
+        "| Groupe | Mode | Fermés | WR | Avg R | Sum R |",
+        "|---|---|---:|---:|---:|---:|",
+    ]
+    for g in sorted(set(old["by_group"]) | set(prox["by_group"])):
+        for label, bg in (("mid", old["by_group"]), ("proximal", prox["by_group"])):
+            s = bg.get(g)
+            if s:
+                lines.append(
+                    f"| {g} | {label} | {s['closed']} | {vol._fmt_pct(s['winrate'])} | "
+                    f"{vol._fmt_r(s['avg_r'])} | {s['sum_r']:.1f} |"
+                )
+    lines += [
+        "",
+        "- **proximal (code live)** : entrée bull=haut OB / bear=bas OB ; SL au-delà du bord distal (+0,05 ATR) ; R ≈ hauteur zone ; fill limite à l’entrée.",
+        "- **mid (legacy)** : entrée 50 % (ou open si zone < 1 ATR) ; gestion dès contact zone.",
+        "- Entrée bord distal (bull=bas / bear=haut) **retirée** du code (R ≈ buffer SL → WR 0 %).",
+        "- Pas de spread/commission/slippage.",
+        "",
+    ]
+    md = "\n".join(lines)
+    (OUT / "ENTRY_PROXIMAL_VS_MID.md").write_text(md, encoding="utf-8")
     print(md)
-
 
 
 if __name__ == "__main__":

@@ -68,8 +68,8 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
         <div>
           <h2 className="text-lg font-semibold">Réaction</h2>
           <p className="text-xs text-zinc-500">
-            Entrée bas OB (achat) / haut OB (vente) · SL bord opposé · SL au-delà du bord opposé · +1R sans SL =
-            réaction · wick au SL = échec
+            Entrée haut OB (achat) / bas OB (vente) · SL au-delà du bord distal · +1R sans SL = réaction · wick
+            au SL = échec
           </p>
         </div>
         <button

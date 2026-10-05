@@ -29,8 +29,8 @@ def format_zone_message(event: str, zone: dict[str, Any]) -> str:
     entry, sl, tp1 = zone.get("entry"), zone.get("sl"), zone.get("tp1")
     rr = zone.get("rr_tp1")
     rr_s = f"{rr:.1f}" if isinstance(rr, (int, float)) else "—"
-    # Entry at OB edge: bull = bas OB, bear = haut OB; SL beyond opposite edge
-    entry_edge = "bas OB" if bull else "haut OB"
+    # Entry at proximal OB edge: bull = haut OB, bear = bas OB; SL beyond distal edge
+    entry_edge = "haut OB" if bull else "bas OB"
     event_fr = {
         "new_zone": "Nouvelle zone",
         "touchee": "Premier contact",
@@ -42,7 +42,7 @@ def format_zone_message(event: str, zone: dict[str, Any]) -> str:
         f"{_stars(score)} {event_fr}\n"
         f"{label} {zone.get('symbol')} {zone.get('tf')}\n"
         f"· {lo:.4g}–{hi:.4g}\n"
-        f"· Entrée {entry:.4g} ({entry_edge}) · SL {sl:.4g} (au-delà bord opposé) · "
+        f"· Entrée {entry:.4g} ({entry_edge}) · SL {sl:.4g} (au-delà bord distal) · "
         f"TP1 {tp1 if tp1 is None else f'{tp1:.4g}'} (RR {rr_s})\n"
         f"· session {sess}"
     )

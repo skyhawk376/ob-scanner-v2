@@ -213,8 +213,8 @@ def test_detect_bullish_ob_with_fvg():
     assert z.star1_fvg is True
     assert z.fresh is True
     assert z.low <= z.high
-    assert z.entry == z.low  # bull entry = OB low
-    assert z.sl < z.low  # SL beyond opposite (distal) edge
+    assert z.entry == z.high  # bull entry = proximal edge (OB high)
+    assert z.sl < z.low  # SL beyond distal edge (OB low)
     assert z.tp2 > z.entry
     assert z.score >= 1
 
@@ -243,3 +243,30 @@ def test_h4_star5_pending():
     if zones:
         assert zones[0].star5_pending is True
         assert zones[0].star5_session is False
+
+
+def test_detect_bearish_ob_entry_proximal():
+    """Mirror the bullish series → bearish OB: entry = OB low (proximal), SL > OB high (distal)."""
+    df = _synth_bullish_ob_series()
+    k = float(df["high"].max() + df["low"].min()) + 100.0
+    mdf = df.copy()
+    mdf["open"] = k - df["open"]
+    mdf["close"] = k - df["close"]
+    mdf["high"] = k - df["low"]
+    mdf["low"] = k - df["high"]
+    params = EngineParams(
+        pivot_n=2,
+        lookback=500,
+        min_score=1,
+        require_fresh=True,
+        require_fvg=True,
+        fib_strict=True,
+        liq_band_atr=0.1,
+    )
+    zones = detect_zones(mdf, symbol="TEST", tf="H1", params=params, min_score=1)
+    bears = [z for z in zones if z.direction == "bear"]
+    assert bears, "expected at least one bearish OB"
+    z = bears[0]
+    assert z.entry == z.low  # bear entry = proximal edge (OB low)
+    assert z.sl > z.high  # SL beyond distal edge (OB high)
+    assert z.tp2 < z.entry

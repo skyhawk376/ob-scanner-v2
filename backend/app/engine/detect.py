@@ -337,29 +337,29 @@ def _build_zone(
 
     fresh = is_fresh(l, h, ob_i, zone_lo, zone_hi, end=n)
 
-    # Entry at OB edge (not mid): bull = OB low, bear = OB high.
-    # SL beyond opposite (distal / invalidation) edge + ATR buffer.
-    # "edge_proximal" = bull high / bear low (wider R).
-    entry_mode = getattr(params, "entry_mode", "edge")
+    # Entry at the PROXIMAL OB edge (first edge price reaches on the retrace):
+    #   bull = OB high, bear = OB low.
+    # SL beyond the DISTAL (invalidation) edge + ATR buffer → R ≈ zone height.
+    # Distal-edge entry (bull=low / bear=high) is intentionally NOT supported:
+    # risk collapses to the SL buffer (~0.05 ATR) → fill wick = SL (WR 0 %).
+    entry_mode = getattr(params, "entry_mode", "proximal")
     if entry_mode == "mid":
         height = zone_hi - zone_lo
         if height > params.entry_mid_atr * atr_v:
             entry = (zone_lo + zone_hi) / 2.0
         else:
             entry = zone_open
-    elif entry_mode == "edge_proximal":
-        entry = zone_hi if bull else zone_lo
     else:
-        # default "edge": bull = OB low, bear = OB high
-        entry = zone_lo if bull else zone_hi
+        # default "proximal": bull = OB high, bear = OB low
+        entry = zone_hi if bull else zone_lo
 
     if bull:
-        sl = zone_lo - params.sl_buffer_atr * atr_v  # beyond opposite (distal) edge
+        sl = zone_lo - params.sl_buffer_atr * atr_v  # beyond distal edge
         risk = entry - sl
         tp2 = entry + 2.0 * risk if risk > 0 else entry
         tp1 = _find_opposite_liquidity("bull", bos_i, n, ph, pl, h, l, entry, atr_v)
     else:
-        sl = zone_hi + params.sl_buffer_atr * atr_v  # beyond opposite (distal) edge
+        sl = zone_hi + params.sl_buffer_atr * atr_v  # beyond distal edge
         risk = sl - entry
         tp2 = entry - 2.0 * risk if risk > 0 else entry
         tp1 = _find_opposite_liquidity("bear", bos_i, n, ph, pl, h, l, entry, atr_v)

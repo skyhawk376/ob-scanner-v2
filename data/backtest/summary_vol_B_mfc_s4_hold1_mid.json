@@ -1,7 +1,7 @@
 {
   "meta": {
     "tag": "vol_B_mfc_s4_hold1_mid",
-    "generated_at": "2026-10-05T23:41:09.073074+02:00",
+    "generated_at": "2026-10-05T23:47:34.819725+02:00",
     "entry_mode": "mid",
     "require_entry_fill": false,
     "min_score": 4,
@@ -16,7 +16,7 @@
     "n_symbols": 48,
     "span_days": 130.95833333333334,
     "touch_span_days": 124.66666666666667,
-    "elapsed_sec": 36.8
+    "elapsed_sec": 36.6
   },
   "summary": {
     "signals": 142,
