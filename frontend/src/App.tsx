@@ -10,7 +10,7 @@ import { fetchCacheStatus, fetchZones, health, runScan } from './lib/api'
 import { filterZones, sortZones } from './lib/sortZones'
 import type { GroupId, TabId, Timeframe, Zone } from './lib/types'
 
-// Default scan: METAUX / FOREX / CRYPTO (NQ100 + ENERGIE off; toggle in UI to enable)
+// Filtre B (prod): METAUX / FOREX / CRYPTO only, ≥4★ (backend STRATEGY_LOCK enforces it too)
 const DEFAULT_GROUPS: GroupId[] = ['METAUX', 'FOREX', 'CRYPTO']
 
 function formatCacheAge(ageSec: number | null | undefined, lastCandle?: string | null): string | null {
@@ -67,7 +67,7 @@ export default function App() {
         setCacheStale((h.cache_age_sec ?? 0) > 6 * 3600)
       })
       .catch(() => setApiOk(false))
-    fetch('/api/symbols')
+    fetch(`${import.meta.env.DEV ? '/api' : ''}/symbols`)
       .then((r) => r.json())
       .then((list: { id: string; group: string }[]) => {
         const m: Record<string, string> = {}
@@ -75,7 +75,7 @@ export default function App() {
         setGroupMap(m)
       })
       .catch(() => {})
-    fetchZones({ tf: 'H1', minScore: 4, limit: 200, activeOnly: true })
+    fetchZones({ tf: 'H1', minScore: 4, limit: 200, activeOnly: true, groups: [...DEFAULT_GROUPS] })
       .then((z) => {
         if (z.length) {
           setZones(sortZones(z))

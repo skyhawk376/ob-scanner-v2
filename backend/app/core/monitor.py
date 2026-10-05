@@ -267,6 +267,8 @@ def compute_stats(
         conn.close()
 
     gmap = _group_map(settings)
+    # Filtre B: stats only over the live universe (4★+, METAUX/FOREX/CRYPTO)
+    zones = [z for z in zones if settings.zone_in_strategy(gmap.get(z.get("symbol", "")), z.get("score"))]
     by_status = Counter(z.get("status") or "active" for z in zones)
     touched = [z for z in zones if z.get("status") in (STATUS_TOUCHEE, STATUS_REACTION, STATUS_ECHEC)]
     reacted = [z for z in zones if z.get("status") == STATUS_REACTION]

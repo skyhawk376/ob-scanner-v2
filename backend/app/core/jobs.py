@@ -73,10 +73,12 @@ def run_pipeline(
 
     tf_list = [t.strip().upper() for t in (tfs or settings.fetch_tfs.split(",")) if t.strip()]
     # None → DEFAULT_SCAN_GROUPS (NQ100 off by default); pass groups="ALL" for full universe
-    group_list = settings.resolved_scan_groups(groups)
+    group_list = settings.clamp_groups(groups)  # Filtre B lock → METAUX,FOREX,CRYPTO
+    if group_list is not None and not group_list:
+        group_list = settings.strategy_groups
     lim = int(limit or settings.fetch_limit)
     started = time.time()
-    min_score = int(settings.default_min_score)
+    min_score = settings.clamp_min_score(int(settings.default_min_score))
     summary: dict[str, Any] = {
         "trigger": trigger,
         "started_at": _now_iso(),

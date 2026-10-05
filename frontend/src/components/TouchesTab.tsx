@@ -28,12 +28,12 @@ export function TouchesTab({ tf }: { tf: Timeframe }) {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [minStars, setMinStars] = useState(1)
+  const [minStars, setMinStars] = useState(4)
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>('all')
 
   const load = () => {
     setLoading(true)
-    fetchZones({ tf, minScore: 1, limit: 2000, statuses: 'touchee,reaction,echec' })
+    fetchZones({ tf, minScore: 4, limit: 2000, statuses: 'touchee,reaction,echec' })
       .then((z) => {
         z.sort((a, b) => (b.touched_at || '').localeCompare(a.touched_at || ''))
         setZones(z)
@@ -64,7 +64,7 @@ export function TouchesTab({ tf }: { tf: Timeframe }) {
     if (statusFilter !== 'all') {
       list = list.filter((z) => z.status === statusFilter)
     }
-    if (minStars > 1) {
+    if (minStars > 4) {
       list = list.filter((z) => (z.score ?? 0) >= minStars)
     }
     if (sessionFilter === 'London' || sessionFilter === 'NY') {
@@ -118,7 +118,7 @@ export function TouchesTab({ tf }: { tf: Timeframe }) {
           </button>
         ))}
         <span className="ml-2 text-zinc-500">Min ★</span>
-        {[1, 3, 4, 5].map((n) => (
+        {[4, 5].map((n) => (
           <button
             key={n}
             type="button"

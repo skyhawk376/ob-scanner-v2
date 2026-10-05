@@ -33,8 +33,8 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
     try {
       const [s, z, p] = await Promise.all([
         fetchStats(tf),
-        fetchZones({ tf, minScore: 1, limit: 500, statuses: 'reaction,echec' }),
-        fetchZones({ tf, minScore: 1, limit: 500, statuses: 'touchee' }),
+        fetchZones({ tf, minScore: 4, limit: 500, statuses: 'reaction,echec' }),
+        fetchZones({ tf, minScore: 4, limit: 500, statuses: 'touchee' }),
       ])
       setStats(s)
       z.sort((a, b) =>

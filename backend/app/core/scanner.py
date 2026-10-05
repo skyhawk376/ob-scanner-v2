@@ -207,10 +207,15 @@ def load_stored_zones(
     db_path = Path(settings.results_dir) / "zones.sqlite" if hasattr(settings, "results_dir") else Path(settings.cache_dir).parent / "results" / "zones.sqlite"
     if not db_path.exists():
         return []
+    # Filtre B: clamp groups + min stars (STRATEGY_LOCK). None = no group filter.
+    gl = settings.clamp_groups(group) if group or settings.strategy_lock else None
+    min_score = settings.clamp_min_score(min_score)
     group_symbols = None
-    if group:
+    if gl is not None:
+        if not gl:
+            return []
         instruments = load_instruments(settings.symbols_yaml)
-        gset = {g.strip().upper() for g in group.split(",")}
+        gset = set(gl)
         group_symbols = {i.id for i in instruments if i.group.upper() in gset}
     conn = connect(db_path)
     try:

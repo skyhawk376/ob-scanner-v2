@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     # Option B volume (~1 trade/jour ouvré): min stars for scan/pipeline/UI defaults.
     default_min_score: int = 4
 
+    # Filtre B hard lock (production): every API / UI / Telegram / stats path is
+    # clamped to DEFAULT_SCAN_GROUPS and >= DEFAULT_MIN_SCORE. Set STRATEGY_LOCK=false
+    # to get the old "explore everything" behaviour (local dev / research).
+    strategy_lock: bool = True
+
     # Entry: proximal (bull=OB high / bear=OB low) | mid (legacy 50% / open)
     entry_mode: str = "mid"
 
@@ -111,6 +116,43 @@ class Settings(BaseSettings):
         if not parts or parts == ["ALL"]:
             return None
         return parts
+
+
+    # ---- Filtre B (live strategy universe) ----
+    @property
+    def strategy_groups(self) -> list[str]:
+        return [g.strip().upper() for g in self.default_scan_groups.split(",") if g.strip()]
+
+    def clamp_groups(self, group: str | list[str] | None = None) -> list[str] | None:
+        """Groups allowed for a request.
+
+        Lock OFF → same as resolved_scan_groups (None = all).
+        Lock ON  → requested ∩ strategy groups; None/ALL → strategy groups.
+        Returns [] when the request only asks for groups outside the strategy.
+        """
+        req = self.resolved_scan_groups(group)
+        if not self.strategy_lock:
+            return req
+        allowed = self.strategy_groups
+        if not allowed:
+            return req
+        if req is None:
+            return list(allowed)
+        return [g for g in req if g in allowed]
+
+    def clamp_min_score(self, min_score: int | None = None) -> int:
+        n = int(min_score if min_score is not None else self.default_min_score)
+        if self.strategy_lock:
+            n = max(n, int(self.default_min_score))
+        return n
+
+    def zone_in_strategy(self, group: str | None, score: int | float | None) -> bool:
+        if not self.strategy_lock:
+            return True
+        if int(score or 0) < int(self.default_min_score):
+            return False
+        allowed = self.strategy_groups
+        return (not allowed) or (str(group or "").upper() in allowed)
 
 
 @lru_cache

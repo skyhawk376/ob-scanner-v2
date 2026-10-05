@@ -142,6 +142,37 @@ def _scheduler_info() -> dict:
     return {"enabled": True, "running": bool(sched.running), "jobs": jobs}
 
 
+def _strategy_groups_or_400(group: str | None) -> list[str] | None:
+    """Filtre B clamp for write/scan endpoints (STRATEGY_LOCK)."""
+    groups = get_settings().clamp_groups(group)
+    if groups is not None and not groups:
+        raise HTTPException(
+            status_code=400,
+            detail=f"group hors Filtre B (autorisés: {','.join(get_settings().strategy_groups)})",
+        )
+    return groups
+
+
+def _strategy_info() -> dict:
+    s = get_settings()
+    return {
+        "name": "Filtre B",
+        "locked": bool(s.strategy_lock),
+        "groups": s.strategy_groups,
+        "min_score": int(s.default_min_score),
+        "entry_mode": (s.entry_mode or "mid").strip().lower(),
+        "reaction_r": float(s.reaction_r),
+        "soft_reaction": bool(s.enable_soft_reaction),
+        "virgin_only": True,
+    }
+
+
+@app.get("/strategy")
+def strategy():
+    """Live strategy universe (UI reads this to lock group / star chips)."""
+    return _strategy_info()
+
+
 @app.get("/healthz")
 def healthz():
     """Liveness probe for Fly/Docker — no disk scan, no network."""
@@ -182,6 +213,7 @@ def health():
         "scheduler_info": _scheduler_info(),
         "fetch_enabled": bool(settings.enable_fetch),
         "entry_mode": (settings.entry_mode or "mid").strip().lower(),
+        "strategy": _strategy_info(),
         "pipeline": {
             "running": pipeline.get("running"),
             "last_ok": last.get("ok"),
@@ -256,7 +288,7 @@ def fetch_endpoint(
         return JSONResponse(
             status_code=202, content={"started": True, "tf": tf, "status": "/jobs/status"}
         )
-    groups = get_settings().resolved_scan_groups(group)
+    groups = _strategy_groups_or_400(group)
     summary = fetch_all(tfs=[tf], groups=groups, limit=limit, write=True)
     return {
         "tf": tf,
@@ -288,7 +320,8 @@ def scan_endpoint(
     min_score: int = Query(4, ge=1, le=5),
     include_mitigated: bool = Query(False),
 ):
-    groups = get_settings().resolved_scan_groups(group)
+    groups = _strategy_groups_or_400(group)
+    min_score = get_settings().clamp_min_score(min_score)
     syms = [s.strip() for s in symbols.split(",")] if symbols else None
     summary = run_scan(
         tfs=[tf],
@@ -391,7 +424,8 @@ def refresh_endpoint(
     notify: bool = Query(True),
     dry_run: bool = Query(True),
 ):
-    groups = get_settings().resolved_scan_groups(group)
+    groups = _strategy_groups_or_400(group)
+    min_score = get_settings().clamp_min_score(min_score)
     summary = refresh_statuses(
         tf=tf,
         history=history,

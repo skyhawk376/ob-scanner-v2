@@ -12,8 +12,7 @@ const GROUPS: { id: GroupId; label: string }[] = [
   { id: 'METAUX', label: 'Métaux' },
   { id: 'FOREX', label: 'Forex' },
   { id: 'CRYPTO', label: 'Crypto' },
-  { id: 'ENERGIE', label: 'Énergie' },
-  { id: 'NQ100', label: 'NQ100' },
+  // Filtre B (prod): Énergie + NQ100 retirés du scanner
 ]
 
 function Chip({
@@ -71,6 +70,12 @@ export function FilterBar({
       </div>
       <div className="h-4 w-px bg-zinc-800" />
       <div className="flex flex-wrap items-center gap-1.5">
+        <span
+          className="mr-1 rounded border border-emerald-700/60 bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300"
+          title="Filtre B : ≥4★ · Métaux/Forex/Crypto · entrée mid · TP +1R (RR 1:1) · OB vierges"
+        >
+          Filtre B
+        </span>
         <span className="mr-1 text-[11px] uppercase tracking-wider text-zinc-500">Groupes</span>
         {GROUPS.map((g) => (
           <Chip
@@ -85,7 +90,7 @@ export function FilterBar({
       <div className="h-4 w-px bg-zinc-800" />
       <div className="flex items-center gap-1.5">
         <span className="text-[11px] uppercase tracking-wider text-zinc-500">Min ★</span>
-        {[3, 4, 5].map((n) => (
+        {[4, 5].map((n) => (
           <Chip key={n} active={minScore === n} onClick={() => onMinScore(n)}>
             ≥{n}
           </Chip>
@@ -95,7 +100,7 @@ export function FilterBar({
         <input
           value={search}
           onChange={(e) => onSearch(e.target.value)}
-          placeholder="Rechercher... (ex: NVDA)"
+          placeholder="Rechercher... (ex: XAUUSD)"
           className="w-56 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-blue-500"
         />
       </div>

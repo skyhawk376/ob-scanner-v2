@@ -145,6 +145,14 @@ def notify_zone_event(
     if score < 4 and event != "digest":
         return None
 
+    # Filtre B: never notify outside the live universe (NQ100 / ENERGIE off)
+    if settings.strategy_lock:
+        from .symbols import load_instruments
+
+        gmap = {i.id: i.group for i in load_instruments(settings.symbols_yaml)}
+        if not settings.zone_in_strategy(gmap.get(str(zone.get("symbol") or "")), score):
+            return {"ok": True, "skipped": "outside_strategy"}
+
     # new_zone: all TFs/symbols with score≥4 (H1 no longer XAU-only)
     # touchee: all sessions (no London/NY filter)
     # reaction / echec: unchanged (score≥4 only)
@@ -192,9 +200,14 @@ def run_digest(*, settings: Settings | None = None, force_dry: bool = True, labe
 
     conn = connect(settings.db_path)
     try:
-        zones = list_zones(conn, min_score=4, limit=2000)
+        zones = list_zones(conn, min_score=settings.clamp_min_score(4), limit=2000)
     finally:
         conn.close()
+    if settings.strategy_lock:
+        from .symbols import load_instruments
+
+        gmap = {i.id: i.group for i in load_instruments(settings.symbols_yaml)}
+        zones = [z for z in zones if settings.zone_in_strategy(gmap.get(z.get("symbol", "")), z.get("score"))]
     now_paris = datetime.now(PARIS).strftime("%H:%M")
     text = build_digest(zones, label=label or now_paris)
     return send_telegram(text, settings=settings, force_dry=force_dry)
