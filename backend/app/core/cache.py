@@ -1,4 +1,4 @@
-"""Parquet candle cache — one file per (symbol, timeframe)."""
+"""Candle cache — parquet when pyarrow is available, else pickle (PA free)."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -7,10 +7,29 @@ import pandas as pd
 
 OHLC_COLS = ["open", "high", "low", "close", "volume"]
 
+try:
+    import pyarrow  # noqa: F401
+
+    _HAS_PYARROW = True
+except ImportError:
+    _HAS_PYARROW = False
+
+
+def _safe_stem(symbol: str, tf: str) -> str:
+    safe = symbol.replace("/", "_").replace("=", "_")
+    return f"{safe}_{tf.upper()}"
+
 
 def cache_path(cache_dir: Path, symbol: str, tf: str) -> Path:
-    safe = symbol.replace("/", "_").replace("=", "_")
-    return Path(cache_dir) / f"{safe}_{tf.upper()}.parquet"
+    ext = ".parquet" if _HAS_PYARROW else ".pkl"
+    return Path(cache_dir) / f"{_safe_stem(symbol, tf)}{ext}"
+
+
+def _candidate_paths(cache_dir: Path, symbol: str, tf: str) -> list[Path]:
+    stem = _safe_stem(symbol, tf)
+    preferred = cache_path(cache_dir, symbol, tf)
+    other = Path(cache_dir) / f"{stem}{'.pkl' if preferred.suffix == '.parquet' else '.parquet'}"
+    return [preferred, other]
 
 
 def normalize_ohlc(df: pd.DataFrame) -> pd.DataFrame:
@@ -35,7 +54,6 @@ def normalize_ohlc(df: pd.DataFrame) -> pd.DataFrame:
         out.index = out.index.tz_convert("UTC")
     out.index.name = "ts"
 
-    # normalize column names
     rename = {c: c.lower() for c in out.columns}
     out = out.rename(columns=rename)
     for col in OHLC_COLS:
@@ -43,20 +61,25 @@ def normalize_ohlc(df: pd.DataFrame) -> pd.DataFrame:
             out[col] = 0.0 if col == "volume" else float("nan")
     out = out[OHLC_COLS].astype(float)
     out = out[~out.index.duplicated(keep="last")].sort_index()
-    # drop rows with NaN OHLC
     out = out.dropna(subset=["open", "high", "low", "close"])
     return out
 
 
+def _read_file(path: Path) -> pd.DataFrame:
+    if path.suffix == ".parquet":
+        return pd.read_parquet(path)
+    return pd.read_pickle(path)
+
+
 def read_cache(cache_dir: Path, symbol: str, tf: str) -> pd.DataFrame:
-    path = cache_path(cache_dir, symbol, tf)
-    if not path.exists():
-        return pd.DataFrame(columns=OHLC_COLS)
-    try:
-        df = pd.read_parquet(path)
-        return normalize_ohlc(df)
-    except Exception:
-        return pd.DataFrame(columns=OHLC_COLS)
+    for path in _candidate_paths(cache_dir, symbol, tf):
+        if not path.exists():
+            continue
+        try:
+            return normalize_ohlc(_read_file(path))
+        except Exception:
+            continue
+    return pd.DataFrame(columns=OHLC_COLS)
 
 
 def write_cache(cache_dir: Path, symbol: str, tf: str, df: pd.DataFrame) -> Path:
@@ -64,7 +87,10 @@ def write_cache(cache_dir: Path, symbol: str, tf: str, df: pd.DataFrame) -> Path
     cache_dir.mkdir(parents=True, exist_ok=True)
     path = cache_path(cache_dir, symbol, tf)
     clean = normalize_ohlc(df)
-    clean.to_parquet(path)
+    if path.suffix == ".parquet":
+        clean.to_parquet(path)
+    else:
+        clean.to_pickle(path)
     return path
 
 

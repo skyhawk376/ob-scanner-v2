@@ -31,19 +31,26 @@ git clone https://github.com/skyhawk376/ob-scanner-v2.git
 cd ~/ob-scanner-v2 && git pull
 ```
 
-## 2. Virtualenv + dépendances
+## 2. Virtualenv + dépendances (slim free PA)
+
+Le free PA (~512 Mo) ne tient pas `requirements.txt` complet (pyarrow/ccxt/yfinance).
+Utiliser **`requirements-pa.txt`** (pickle cache, pas de fetch live Yahoo/Binance).
 
 ```bash
+# Libérer de l’espace d’abord
+rm -rf ~/.cache/pip
 cd ~/ob-scanner-v2
+rm -rf .venv
 python3.12 -m venv .venv || python3.10 -m venv .venv
 source .venv/bin/activate
 pip install -U pip
-pip install -r requirements.txt
-# a2wsgi est dans requirements.txt (obligatoire pour FastAPI → WSGI)
+pip install --no-cache-dir -r requirements-pa.txt
 ```
 
 Dans l’onglet **Web** → **Virtualenv** :  
 `/home/skyhawk376/ob-scanner-v2/.venv`
+
+Sans pyarrow le cache utilise des `.pkl`. Uploader `data/cache/` depuis ta machine si besoin (whitelist sortante free limitée).
 
 ## 3. Brancher le WSGI (remplace v1 sur le domaine)
 
