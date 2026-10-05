@@ -213,8 +213,8 @@ def test_detect_bullish_ob_with_fvg():
     assert z.star1_fvg is True
     assert z.fresh is True
     assert z.low <= z.high
-    assert z.entry >= z.low and z.entry <= z.high or True  # entry can be open
-    assert z.sl < z.low  # SL beyond wick for bull
+    assert z.entry == z.low  # bull entry = OB low
+    assert z.sl < z.low  # SL beyond opposite (distal) edge
     assert z.tp2 > z.entry
     assert z.score >= 1
 

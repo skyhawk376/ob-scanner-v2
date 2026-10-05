@@ -12,9 +12,12 @@ class EngineParams:
     # displacement optional filter
     require_displacement: bool = False
     displacement_body_atr: float = 1.2
-    # entry: 50% mid if zone height > entry_mid_atr * ATR else open
-    entry_mid_atr: float = 1.0
-    sl_buffer_atr: float = 0.05
+    # entry_mode: "edge" = bull=OB low / bear=OB high (default);
+    #             "edge_proximal" = bull=OB high / bear=OB low;
+    #             "mid" = legacy 50% mid if height > entry_mid_atr * ATR else open
+    entry_mode: str = "edge"
+    entry_mid_atr: float = 1.0  # used only when entry_mode == "mid"
+    sl_buffer_atr: float = 0.05  # SL beyond distal/opposite edge
     # ★3 strict: entire zone on discount/premium side of 0.5
     fib_strict: bool = True
     # ★4

@@ -84,11 +84,11 @@ export function ZoneCard({ zone, onOpen }: { zone: Zone; onOpen?: (z: Zone) => v
 
       <div className="grid grid-cols-4 gap-1 border-t border-zinc-800/80 px-3 py-2 text-[11px]">
         <div>
-          <div className="text-zinc-500">Entrée</div>
+          <div className="text-zinc-500">{buy ? 'Entrée (bas OB)' : 'Entrée (haut OB)'}</div>
           <div className="font-medium text-blue-300">{fmt(zone.entry)}</div>
         </div>
         <div>
-          <div className="text-zinc-500">SL</div>
+          <div className="text-zinc-500">SL (bord opposé)</div>
           <div className="font-medium text-orange-300">{fmt(zone.sl)}</div>
         </div>
         <div>

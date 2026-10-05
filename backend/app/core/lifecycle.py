@@ -96,14 +96,17 @@ def simulate_lifecycle(
     now: datetime | None = None,
     soft_reaction_r: float | None = None,
     reaction_r: float | None = None,
+    require_entry_fill: bool = True,
 ) -> LifecycleState:
     """Walk candles after OB to classify zone status (PLAN §7).
 
     Defaults (strategy):
     - soft reaction OFF (ENABLE_SOFT_REACTION=false) → exit at +1R / opposing liquidity
     - set ENABLE_SOFT_REACTION=true for soft 0.5R early exit
-    - failure only on SL wick/close — NOT close alone beyond distal zone edge
-    - touch bar is evaluated for MFE / reaction (no skip)
+    - entry = OB low (bull) / OB high (bear); SL beyond opposite (distal) edge
+    - Touchee = first zone contact; trade mgmt (MFE/SL/reaction) starts at entry fill
+    - failure only on SL wick — NOT close alone beyond distal zone edge
+    - touch/fill bar is evaluated for MFE / reaction (no skip)
     """
     state = LifecycleState()
     if df is None or df.empty:
@@ -153,6 +156,7 @@ def simulate_lifecycle(
     state.bars_since_ob = max(0, n - 1 - ob_i)
 
     touched = False
+    filled = False
     touch_i: int | None = None
 
     for i in range(start, n):
@@ -164,7 +168,7 @@ def simulate_lifecycle(
             state.events.append("expiree_bars")
             return state
 
-        # distance expiry (mid vs close)
+        # distance expiry (zone mid vs close)
         mid = (zone_lo + zone_hi) / 2.0
         if not touched and atr > 0 and abs(mid - c[i]) / atr > MAX_DISTANCE_ATR:
             state.status = STATUS_EXPIREE
@@ -174,6 +178,11 @@ def simulate_lifecycle(
             return state
 
         intersects = l[i] <= zone_hi and h[i] >= zone_lo
+        # Limit fill at entry: bull wick ≤ OB low / entry; bear wick ≥ OB high / entry
+        if bull:
+            hit_entry = l[i] <= entry
+        else:
+            hit_entry = h[i] >= entry
 
         if not touched:
             if intersects:
@@ -185,12 +194,20 @@ def simulate_lifecycle(
                 state.touched_session = sess
                 state.star5_at_touch = sess is not None
                 state.events.append("touchee")
-                # fall through — evaluate MFE / reaction / SL on touch bar
+                # fall through — may fill + evaluate on same bar
             else:
                 continue
 
-        # --- post-touch (including touch bar) ---
+        # --- post-touch: wait for entry fill before MFE / SL / reaction ---
         assert touch_i is not None
+        if not filled:
+            if not require_entry_fill or hit_entry:
+                filled = True
+                if require_entry_fill:
+                    state.events.append("entry_fill")
+                # fall through — evaluate MFE / reaction / SL on fill bar
+            else:
+                continue
         if bull:
             fav = (h[i] - entry) / risk
             adv = (entry - l[i]) / risk
