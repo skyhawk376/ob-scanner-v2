@@ -109,18 +109,9 @@ def notify_zone_event(
     if score < 4 and event != "digest":
         return None
 
-    if event == "new_zone":
-        tf = str(zone.get("tf", "")).upper()
-        sym = zone.get("symbol")
-        # H4/D/W always; H1 only XAUUSD
-        if tf == "H1" and sym != "XAUUSD":
-            return None
-
-    if event == "touchee":
-        # London/NY only (except we still allow if session set; crypto same rule per PLAN default)
-        sess = zone.get("touched_session")
-        if sess not in ("London", "NY"):
-            return None
+    # new_zone: all TFs/symbols with score≥4 (H1 no longer XAU-only)
+    # touchee: all sessions (no London/NY filter)
+    # reaction / echec: unchanged (score≥4 only)
 
     conn = connect(settings.db_path)
     try:
