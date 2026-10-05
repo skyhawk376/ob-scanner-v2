@@ -82,15 +82,32 @@ def read_cache(cache_dir: Path, symbol: str, tf: str) -> pd.DataFrame:
     return pd.DataFrame(columns=OHLC_COLS)
 
 
+def _plain_ohlc(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop Arrow/Extension dtypes so pickles unpickle without pyarrow."""
+    import numpy as np
+
+    clean = normalize_ohlc(df)
+    if clean.empty:
+        return clean
+    out = pd.DataFrame(
+        {
+            c: np.asarray(clean[c], dtype=np.float64)
+            for c in OHLC_COLS
+        },
+        index=pd.DatetimeIndex(pd.to_datetime(clean.index, utc=True), name="ts"),
+    )
+    return out
+
+
 def write_cache(cache_dir: Path, symbol: str, tf: str, df: pd.DataFrame) -> Path:
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     path = cache_path(cache_dir, symbol, tf)
-    clean = normalize_ohlc(df)
+    clean = _plain_ohlc(df)
     if path.suffix == ".parquet":
         clean.to_parquet(path)
     else:
-        clean.to_pickle(path)
+        clean.to_pickle(path, protocol=4)
     return path
 
 
