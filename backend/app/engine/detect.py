@@ -338,21 +338,21 @@ def _build_zone(
     fresh = is_fresh(l, h, ob_i, zone_lo, zone_hi, end=n)
 
     # Entry modes (ENTRY_MODE / EngineParams.entry_mode):
-    #   "proximal" (code default): bull = OB high, bear = OB low
-    #   "mid": 50% of zone if height > entry_mid_atr * ATR else open (Fly: ENTRY_MODE=mid)
+    #   "mid" (default): 50% of zone if height > entry_mid_atr * ATR else open
+    #   "proximal": bull = OB high, bear = OB low
     # SL beyond the DISTAL (invalidation) edge + ATR buffer.
     # Distal-edge entry (bull=low / bear=high) is intentionally NOT supported:
     # risk collapses to the SL buffer (~0.05 ATR) → fill wick = SL (WR 0 %).
-    entry_mode = getattr(params, "entry_mode", "proximal")
-    if entry_mode == "mid":
+    entry_mode = getattr(params, "entry_mode", "mid")
+    if entry_mode == "proximal":
+        entry = zone_hi if bull else zone_lo
+    else:
+        # default "mid"
         height = zone_hi - zone_lo
         if height > params.entry_mid_atr * atr_v:
             entry = (zone_lo + zone_hi) / 2.0
         else:
             entry = zone_open
-    else:
-        # default "proximal": bull = OB high, bear = OB low
-        entry = zone_hi if bull else zone_lo
 
     if bull:
         sl = zone_lo - params.sl_buffer_atr * atr_v  # beyond distal edge

@@ -25,6 +25,14 @@ export function ZoneDetailModal({
   onClose: () => void
 }) {
   const buy = zone.direction === 'bull'
+  const risk =
+    zone.entry != null && zone.sl != null ? Math.abs(zone.entry - zone.sl) : null
+  const tp1r =
+    risk != null && risk > 0 && zone.entry != null
+      ? buy
+        ? zone.entry + risk
+        : zone.entry - risk
+      : null
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -138,19 +146,14 @@ export function ZoneDetailModal({
               </h3>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <Metric
-                  label={buy ? 'Entrée (haut OB)' : 'Entrée (bas OB)'}
+                  label="Entrée (milieu OB)"
                   value={fmt(zone.entry)}
                   color="text-blue-300"
                 />
-                <Metric label="SL (bord distal)" value={fmt(zone.sl)} color="text-orange-300" />
-                <Metric label="TP1" value={fmt(zone.tp1)} color="text-zinc-200" />
-                <Metric label="TP2" value={fmt(zone.tp2)} color="text-zinc-200" />
-                <Metric
-                  label="RR TP1"
-                  value={zone.rr_tp1 != null ? zone.rr_tp1.toFixed(1) : '—'}
-                  color="text-zinc-200"
-                />
-                <Metric label="RR TP2" value={zone.rr_tp2.toFixed(1)} color="text-zinc-200" />
+                <Metric label="SL" value={fmt(zone.sl)} color="text-orange-300" />
+                <Metric label="TP(+1R)" value={fmt(tp1r)} color="text-zinc-200" />
+                <Metric label="TP2 (+2R)" value={fmt(zone.tp2)} color="text-zinc-200" />
+                <Metric label="RR" value={tp1r != null ? '1.0' : '—'} color="text-zinc-200" />
               </div>
             </section>
 

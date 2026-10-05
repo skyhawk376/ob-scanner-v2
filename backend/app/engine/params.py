@@ -13,10 +13,11 @@ class EngineParams:
     # displacement optional filter
     require_displacement: bool = False
     displacement_body_atr: float = 1.2
-    # entry_mode: "proximal" = bull=OB high / bear=OB low (default);
-    #             "mid" = legacy 50% mid if height > entry_mid_atr * ATR else open
+    # entry_mode: "mid" = 50% mid if height > entry_mid_atr * ATR else open (default);
+    #             "proximal" = bull=OB high / bear=OB low
+    # Override via ENTRY_MODE env (see entry_mode_from_env / params_for_tf).
     # (distal-edge entry bull=low / bear=high was reverted — R ≈ SL buffer only)
-    entry_mode: str = "proximal"
+    entry_mode: str = "mid"
     entry_mid_atr: float = 1.0  # used only when entry_mode == "mid"
     sl_buffer_atr: float = 0.05  # SL beyond distal edge
     # ★3 strict: entire zone on discount/premium side of 0.5
@@ -47,9 +48,9 @@ class EngineParams:
 
 
 def entry_mode_from_env() -> str:
-    """ENTRY_MODE env: proximal (default) | mid. Invalid → proximal."""
-    raw = (os.environ.get("ENTRY_MODE") or "proximal").strip().lower()
-    return raw if raw in ("proximal", "mid") else "proximal"
+    """ENTRY_MODE env: mid (default) | proximal. Invalid → mid."""
+    raw = (os.environ.get("ENTRY_MODE") or "mid").strip().lower()
+    return raw if raw in ("proximal", "mid") else "mid"
 
 
 def require_entry_fill_for_mode(entry_mode: str | None = None) -> bool:

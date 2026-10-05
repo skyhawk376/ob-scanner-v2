@@ -25,6 +25,14 @@ function fmt(n: number | null | undefined, digits = 4): string {
 
 export function ZoneCard({ zone, onOpen }: { zone: Zone; onOpen?: (z: Zone) => void }) {
   const buy = zone.direction === 'bull'
+  const risk =
+    zone.entry != null && zone.sl != null ? Math.abs(zone.entry - zone.sl) : null
+  const tp1r =
+    risk != null && risk > 0 && zone.entry != null
+      ? buy
+        ? zone.entry + risk
+        : zone.entry - risk
+      : null
   const clickable = Boolean(onOpen)
 
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
@@ -84,22 +92,20 @@ export function ZoneCard({ zone, onOpen }: { zone: Zone; onOpen?: (z: Zone) => v
 
       <div className="grid grid-cols-4 gap-1 border-t border-zinc-800/80 px-3 py-2 text-[11px]">
         <div>
-          <div className="text-zinc-500">{buy ? 'Entrée (haut OB)' : 'Entrée (bas OB)'}</div>
+          <div className="text-zinc-500">Entrée (milieu OB)</div>
           <div className="font-medium text-blue-300">{fmt(zone.entry)}</div>
         </div>
         <div>
-          <div className="text-zinc-500">SL (bord distal)</div>
+          <div className="text-zinc-500">SL</div>
           <div className="font-medium text-orange-300">{fmt(zone.sl)}</div>
         </div>
         <div>
-          <div className="text-zinc-500">TP1</div>
-          <div className="font-medium text-zinc-200">{fmt(zone.tp1)}</div>
+          <div className="text-zinc-500">TP(+1R)</div>
+          <div className="font-medium text-zinc-200">{fmt(tp1r)}</div>
         </div>
         <div>
           <div className="text-zinc-500">RR</div>
-          <div className="font-medium text-zinc-200">
-            {zone.rr_tp1 != null ? zone.rr_tp1.toFixed(1) : '—'} · 2R
-          </div>
+          <div className="font-medium text-zinc-200">{tp1r != null ? '1.0' : '—'}</div>
         </div>
       </div>
     </article>

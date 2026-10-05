@@ -68,7 +68,7 @@ class Settings(BaseSettings):
     default_min_score: int = 4
 
     # Entry: proximal (bull=OB high / bear=OB low) | mid (legacy 50% / open)
-    entry_mode: str = "proximal"
+    entry_mode: str = "mid"
 
     @property
     def oanda_base_url(self) -> str:

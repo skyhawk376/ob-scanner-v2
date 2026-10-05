@@ -213,7 +213,8 @@ def test_detect_bullish_ob_with_fvg():
     assert z.star1_fvg is True
     assert z.fresh is True
     assert z.low <= z.high
-    assert z.entry == z.high  # bull entry = proximal edge (OB high)
+    # default mid: entry between low/high (50%) or open if zone thin
+    assert z.low <= z.entry <= z.high
     assert z.sl < z.low  # SL beyond distal edge (OB low)
     assert z.tp2 > z.entry
     assert z.score >= 1
@@ -262,6 +263,7 @@ def test_detect_bearish_ob_entry_proximal():
         require_fvg=True,
         fib_strict=True,
         liq_band_atr=0.1,
+        entry_mode="proximal",
     )
     zones = detect_zones(mdf, symbol="TEST", tf="H1", params=params, min_score=1)
     bears = [z for z in zones if z.direction == "bear"]
