@@ -1,8 +1,9 @@
-"""Candle cache — parquet when pyarrow is available, else pickle (PA free)."""
+"""Candle cache — parquet when pyarrow is available, else plain pickle (no Arrow dtypes)."""
 from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 OHLC_COLS = ["open", "high", "low", "close", "volume"]
@@ -65,10 +66,39 @@ def normalize_ohlc(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def _to_plain_payload(df: pd.DataFrame) -> dict:
+    """Numpy-only payload — unpickles without pyarrow."""
+    clean = normalize_ohlc(df)
+    if clean.empty:
+        return {
+            "ts": np.asarray([], dtype=np.int64),
+            **{c: np.asarray([], dtype=np.float64) for c in OHLC_COLS},
+        }
+    ts = np.asarray([int(x.timestamp()) for x in clean.index], dtype=np.int64)
+    return {
+        "ts": ts,
+        **{c: np.asarray(clean[c], dtype=np.float64) for c in OHLC_COLS},
+    }
+
+
+def _from_plain_payload(obj) -> pd.DataFrame:
+    if isinstance(obj, pd.DataFrame):
+        return normalize_ohlc(obj)
+    if not isinstance(obj, dict) or "ts" not in obj:
+        raise TypeError(f"unsupported cache payload: {type(obj)}")
+    data = {c: obj[c] for c in OHLC_COLS}
+    idx = pd.to_datetime(obj["ts"], unit="s", utc=True)
+    return normalize_ohlc(pd.DataFrame(data, index=idx))
+
+
 def _read_file(path: Path) -> pd.DataFrame:
     if path.suffix == ".parquet":
         return pd.read_parquet(path)
-    return pd.read_pickle(path)
+    import pickle
+
+    with path.open("rb") as f:
+        obj = pickle.load(f)
+    return _from_plain_payload(obj)
 
 
 def read_cache(cache_dir: Path, symbol: str, tf: str) -> pd.DataFrame:
@@ -82,32 +112,18 @@ def read_cache(cache_dir: Path, symbol: str, tf: str) -> pd.DataFrame:
     return pd.DataFrame(columns=OHLC_COLS)
 
 
-def _plain_ohlc(df: pd.DataFrame) -> pd.DataFrame:
-    """Drop Arrow/Extension dtypes so pickles unpickle without pyarrow."""
-    import numpy as np
-
-    clean = normalize_ohlc(df)
-    if clean.empty:
-        return clean
-    out = pd.DataFrame(
-        {
-            c: np.asarray(clean[c], dtype=np.float64)
-            for c in OHLC_COLS
-        },
-        index=pd.DatetimeIndex(pd.to_datetime(clean.index, utc=True), name="ts"),
-    )
-    return out
-
-
 def write_cache(cache_dir: Path, symbol: str, tf: str, df: pd.DataFrame) -> Path:
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
     path = cache_path(cache_dir, symbol, tf)
-    clean = _plain_ohlc(df)
+    clean = normalize_ohlc(df)
     if path.suffix == ".parquet":
         clean.to_parquet(path)
     else:
-        clean.to_pickle(path, protocol=4)
+        import pickle
+
+        with path.open("wb") as f:
+            pickle.dump(_to_plain_payload(clean), f, protocol=4)
     return path
 
 
