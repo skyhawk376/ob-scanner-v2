@@ -15,7 +15,30 @@ function toUnix(iso: string): number {
   return Math.floor(new Date(iso).getTime() / 1000)
 }
 
-export function MiniChart({ zone, height = 200 }: { zone: Zone; height?: number }) {
+/** Nearest candle unix time to target (for reliable timeToCoordinate). */
+function nearestTime(candles: { time: number }[], target: number): number {
+  if (!candles.length) return target
+  let best = candles[0].time
+  let bestDist = Math.abs(best - target)
+  for (const c of candles) {
+    const d = Math.abs(c.time - target)
+    if (d < bestDist) {
+      best = c.time
+      bestDist = d
+    }
+  }
+  return best
+}
+
+export function MiniChart({
+  zone,
+  height = 200,
+  interactive = false,
+}: {
+  zone: Zone
+  height?: number
+  interactive?: boolean
+}) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -48,9 +71,9 @@ export function MiniChart({ zone, height = 200 }: { zone: Zone; height?: number 
         timeVisible: true,
         secondsVisible: false,
       },
-      crosshair: { mode: 0 },
-      handleScroll: false,
-      handleScale: false,
+      crosshair: { mode: interactive ? 1 : 0 },
+      handleScroll: interactive,
+      handleScale: interactive,
     })
     const series = chart.addSeries(CandlestickSeries, {
       upColor: '#22c55e',
@@ -62,29 +85,54 @@ export function MiniChart({ zone, height = 200 }: { zone: Zone; height?: number 
     })
     apiRef.current = { chart, series }
 
-    const placeOverlay = (barWidth: number, tOb: number) => {
-      const x = chart.timeScale().timeToCoordinate(tOb as Time)
+    const isBuy = zone.direction === 'bull'
+
+    const styleOverlay = () => {
+      overlay.style.background = isBuy ? 'rgba(34,197,94,0.30)' : 'rgba(239,68,68,0.30)'
+      overlay.style.border = isBuy
+        ? '1.5px solid rgba(34,197,94,0.95)'
+        : '1.5px solid rgba(239,68,68,0.95)'
+      overlay.style.boxShadow = isBuy
+        ? 'inset 0 0 14px rgba(34,197,94,0.18)'
+        : 'inset 0 0 14px rgba(239,68,68,0.18)'
+      overlay.style.color = isBuy ? '#86efac' : '#fca5a5'
+    }
+
+    const placeFullWidthBand = (top: number, h: number) => {
+      overlay.style.display = 'flex'
+      overlay.style.left = '0'
+      overlay.style.right = '0'
+      overlay.style.top = `${top}px`
+      overlay.style.width = '100%'
+      overlay.style.height = `${h}px`
+      styleOverlay()
+    }
+
+    const placeOverlay = (barWidth: number, tAnchor: number) => {
       const yTop = series.priceToCoordinate(zone.high)
       const yBot = series.priceToCoordinate(zone.low)
-      if (x == null || yTop == null || yBot == null) {
+      if (yTop == null || yBot == null) {
         overlay.style.display = 'none'
         return
       }
       const top = Math.min(yTop, yBot)
-      const h = Math.max(Math.abs(yBot - yTop), 6)
-      const w = Math.max(barWidth * 6, 28)
-      const isBuy = zone.direction === 'bull'
-      overlay.style.display = 'flex'
-      overlay.style.left = `${x - 2}px`
-      overlay.style.top = `${top}px`
-      overlay.style.width = `${w}px`
-      overlay.style.height = `${h}px`
-      overlay.style.background = isBuy ? 'rgba(34,197,94,0.22)' : 'rgba(239,68,68,0.22)'
-      overlay.style.border = isBuy
-        ? '1px solid rgba(34,197,94,0.85)'
-        : '1px solid rgba(239,68,68,0.85)'
-      overlay.dataset.label = isBuy ? 'ZONE ACHAT' : 'ZONE VENTE'
-      overlay.style.color = isBuy ? '#86efac' : '#fca5a5'
+      const h = Math.max(Math.abs(yBot - yTop), 10)
+      const chartW = wrapRef.current?.clientWidth ?? el.clientWidth
+      const x = chart.timeScale().timeToCoordinate(tAnchor as Time)
+
+      // Prefer timed rectangle; fall back to full-width band if time coord missing/off-screen
+      if (x != null && Number.isFinite(x) && chartW > 0 && x >= -20 && x <= chartW + 20) {
+        const w = Math.max(barWidth * 6, 40)
+        overlay.style.display = 'flex'
+        overlay.style.left = `${Math.max(0, Math.min(chartW - w, x - 2))}px`
+        overlay.style.right = 'auto'
+        overlay.style.top = `${top}px`
+        overlay.style.width = `${w}px`
+        overlay.style.height = `${h}px`
+        styleOverlay()
+      } else {
+        placeFullWidthBand(top, h)
+      }
     }
 
     const ro = new ResizeObserver(() => {
@@ -114,7 +162,8 @@ export function MiniChart({ zone, height = 200 }: { zone: Zone; height?: number 
         chart.timeScale().fitContent()
 
         const tOb = toUnix(zone.ts_ob)
-        // Estimate bar width from neighboring points
+        const tAnchor = nearestTime(candles, tOb)
+
         let barWidth = 8
         if (candles.length >= 2) {
           const x0 = chart.timeScale().timeToCoordinate(candles[0].time as Time)
@@ -122,18 +171,18 @@ export function MiniChart({ zone, height = 200 }: { zone: Zone; height?: number 
           if (x0 != null && x1 != null) barWidth = Math.abs(x1 - x0)
         }
 
-        // Focus view around OB
-        const idx = candles.findIndex((c) => c.time >= tOb)
+        const idx = candles.findIndex((c) => c.time >= tAnchor)
         if (idx >= 0) {
           const from = Math.max(0, idx - 40)
           const to = Math.min(candles.length - 1, idx + 40)
           chart.timeScale().setVisibleLogicalRange({ from, to })
         }
 
-        const redraw = () => placeOverlay(barWidth, tOb)
-        redraw()
+        const redraw = () => placeOverlay(barWidth, tAnchor)
+        // Two frames: logical range + layout settle before measuring coords
+        requestAnimationFrame(() => requestAnimationFrame(redraw))
         chart.timeScale().subscribeVisibleLogicalRangeChange(redraw)
-        // entry / SL lines
+
         series.createPriceLine({
           price: zone.entry,
           color: '#60a5fa',
@@ -161,17 +210,32 @@ export function MiniChart({ zone, height = 200 }: { zone: Zone; height?: number 
       chart.remove()
       apiRef.current = null
     }
-  }, [zone.id, zone.symbol, zone.tf, zone.high, zone.low, zone.direction, zone.ts_ob, zone.entry, zone.sl, height])
+  }, [
+    zone.id,
+    zone.symbol,
+    zone.tf,
+    zone.high,
+    zone.low,
+    zone.direction,
+    zone.ts_ob,
+    zone.entry,
+    zone.sl,
+    height,
+    interactive,
+  ])
 
   const label = zone.direction === 'bull' ? 'ZONE ACHAT' : 'ZONE VENTE'
   const labelColor = zone.direction === 'bull' ? 'text-emerald-300' : 'text-red-300'
 
   return (
-    <div ref={wrapRef} className="relative w-full overflow-hidden rounded-md bg-[#0c0c0e]">
+    <div
+      ref={wrapRef}
+      className={`relative w-full overflow-hidden rounded-md bg-[#0c0c0e] ${interactive ? '' : 'pointer-events-none'}`}
+    >
       <div ref={chartRef} className="w-full" style={{ height }} />
       <div
         ref={overlayRef}
-        className={`pointer-events-none absolute flex items-start justify-center overflow-hidden rounded-sm ${labelColor}`}
+        className={`pointer-events-none absolute z-[1] flex items-start justify-center overflow-hidden rounded-sm ${labelColor}`}
         style={{ display: 'none', fontSize: 9, fontWeight: 700, letterSpacing: '0.04em' }}
       >
         <span className="mt-0.5 px-0.5 leading-none drop-shadow">{label}</span>

@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { Zone } from '../lib/types'
 import { ZoneCard } from './ZoneCard'
+import { ZoneDetailModal } from './ZoneDetailModal'
 
 export function Mosaic({
   zones,
@@ -14,6 +16,8 @@ export function Mosaic({
   hasScanned: boolean
   elapsed: number | null
 }) {
+  const [selected, setSelected] = useState<Zone | null>(null)
+
   if (scanning) {
     return (
       <div className="px-4 pb-8 text-center text-sm text-zinc-500">
@@ -57,13 +61,14 @@ export function Mosaic({
           {zones.length} zone{zones.length > 1 ? 's' : ''} · tri score / Fib / distance
           {elapsed != null ? ` · ${elapsed.toFixed(1)}s` : ''}
         </span>
-        <span className="text-zinc-600">Vert = ZONE ACHAT · Rouge = ZONE VENTE</span>
+        <span className="text-zinc-600">Vert = ZONE ACHAT · Rouge = ZONE VENTE · tap = détail</span>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {zones.map((z) => (
-          <ZoneCard key={z.id} zone={z} />
+          <ZoneCard key={z.id} zone={z} onOpen={setSelected} />
         ))}
       </div>
+      {selected && <ZoneDetailModal zone={selected} onClose={() => setSelected(null)} />}
     </div>
   )
 }

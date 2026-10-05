@@ -16,3 +16,4 @@ bin/cloudflared
 *.egg-info/
 # frontend/dist IS tracked for PythonAnywhere (no Node build on PA)
 # frontend/dist/
+ob-seed-cache.tgz

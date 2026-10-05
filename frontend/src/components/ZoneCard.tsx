@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react'
 import type { Zone } from '../lib/types'
 import { MiniChart } from './MiniChart'
 
@@ -22,10 +23,35 @@ function fmt(n: number | null | undefined, digits = 4): string {
   return n.toFixed(digits)
 }
 
-export function ZoneCard({ zone }: { zone: Zone }) {
+export function ZoneCard({ zone, onOpen }: { zone: Zone; onOpen?: (z: Zone) => void }) {
   const buy = zone.direction === 'bull'
+  const clickable = Boolean(onOpen)
+
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (!onOpen) return
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onOpen(zone)
+    }
+  }
+
   return (
-    <article className="flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 shadow-sm shadow-black/40">
+    <article
+      className={`flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60 shadow-sm shadow-black/40 transition ${
+        clickable
+          ? 'cursor-pointer hover:border-zinc-600 hover:bg-zinc-900/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400/60'
+          : ''
+      }`}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={clickable ? () => onOpen!(zone) : undefined}
+      onKeyDown={clickable ? onKeyDown : undefined}
+      aria-label={
+        clickable
+          ? `Ouvrir le détail ${zone.symbol} ${buy ? 'ACHAT' : 'VENTE'} ${zone.score} étoiles`
+          : undefined
+      }
+    >
       <div className="flex items-start justify-between gap-2 border-b border-zinc-800/80 px-3 py-2">
         <div>
           <div className="flex items-center gap-2">
