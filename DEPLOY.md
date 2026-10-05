@@ -1,5 +1,7 @@
 # Hébergement en ligne — notes (P5 / P7 light)
 
+> **Prod recommandée : Fly.io always-on → voir `DEPLOY_FLY.md`.** PythonAnywhere free (`DEPLOY_PA.md`) = vitrine/rollback sans fetch live.
+
 ## Option A — un seul process (API + front buildé)
 
 ```bash

@@ -34,19 +34,60 @@ app.add_middleware(
 
 @app.on_event("startup")
 def _maybe_scheduler():
+    """Always-on hosts (Fly/Docker/VPS) set ENABLE_SCHEDULER=true.
+
+    Jobs (single uvicorn worker → single scheduler):
+      - pipeline (fetch → scan → refresh+notify) every FETCH_INTERVAL_MIN
+      - daily history backfill (Touches / Réaction stats)
+      - Telegram digests 07:45 / 14:15 Paris
+      - bootstrap pipeline ~10 s after boot when cache is empty or stale
+    PythonAnywhere uses wsgi.py (scheduler forced off) — unaffected.
+    """
     settings = get_settings()
     if not settings.enable_scheduler:
         return
     try:
+        from datetime import datetime, timedelta
+
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger
 
-        sched = BackgroundScheduler(timezone=settings.tz)
+        from ..core.jobs import run_pipeline
+
+        settings.cache_dir.mkdir(parents=True, exist_ok=True)
+        settings.results_dir.mkdir(parents=True, exist_ok=True)
+
+        sched = BackgroundScheduler(
+            timezone=settings.tz,
+            job_defaults={"coalesce": True, "max_instances": 1, "misfire_grace_time": 300},
+        )
+        if settings.enable_fetch:
+            sched.add_job(
+                lambda: run_pipeline(trigger="schedule"),
+                "interval",
+                minutes=max(5, settings.fetch_interval_min),
+                id="pipeline",
+                replace_existing=True,
+            )
+        else:
+            # No live fetch: keep the old lightweight lifecycle monitor.
+            sched.add_job(
+                lambda: refresh_statuses(tf="H1", notify=True, force_dry_telegram=None),
+                "interval",
+                minutes=5,
+                id="monitor_h1",
+                replace_existing=True,
+            )
         sched.add_job(
-            lambda: refresh_statuses(tf="H1", notify=True, force_dry_telegram=None),
-            "interval",
-            minutes=2,
-            id="monitor_h1",
+            lambda: run_pipeline(
+                trigger="history", fetch=False, scan=False, history=True, notify=False
+            ),
+            CronTrigger(
+                hour=settings.history_refresh_hour,
+                minute=settings.history_refresh_minute,
+                timezone=settings.tz,
+            ),
+            id="history_daily",
             replace_existing=True,
         )
         sched.add_job(
@@ -61,10 +102,50 @@ def _maybe_scheduler():
             id="digest_ny",
             replace_existing=True,
         )
+        if settings.enable_fetch:
+            info = cache_freshness(settings.cache_dir, "H1")
+            age = info.get("age_sec")
+            if age is None or age > settings.bootstrap_stale_sec:
+                lim = settings.bootstrap_limit if age is None else settings.fetch_limit
+                sched.add_job(
+                    lambda: run_pipeline(trigger="bootstrap", limit=lim),
+                    "date",
+                    run_date=datetime.now(sched.timezone) + timedelta(seconds=10),
+                    id="bootstrap",
+                    replace_existing=True,
+                )
         sched.start()
         app.state.scheduler = sched
+        print(f"[scheduler] started jobs={[j.id for j in sched.get_jobs()]}", flush=True)
     except Exception as e:
-        print(f"[scheduler] not started: {e}")
+        print(f"[scheduler] not started: {e}", flush=True)
+
+
+@app.on_event("shutdown")
+def _stop_scheduler():
+    sched = getattr(app.state, "scheduler", None)
+    if sched is not None:
+        try:
+            sched.shutdown(wait=False)
+        except Exception:
+            pass
+
+
+def _scheduler_info() -> dict:
+    sched = getattr(app.state, "scheduler", None)
+    if sched is None:
+        return {"enabled": bool(get_settings().enable_scheduler), "running": False, "jobs": []}
+    jobs = []
+    for j in sched.get_jobs():
+        nrt = getattr(j, "next_run_time", None)
+        jobs.append({"id": j.id, "next_run": nrt.isoformat() if nrt else None})
+    return {"enabled": True, "running": bool(sched.running), "jobs": jobs}
+
+
+@app.get("/healthz")
+def healthz():
+    """Liveness probe for Fly/Docker — no disk scan, no network."""
+    return {"status": "ok"}
 
 
 @app.get("/health")
@@ -78,8 +159,14 @@ def health():
     except Exception as e:
         return {"status": "degraded", "phase": "P5", "error": str(e)}
     cache_info = cache_freshness(settings.cache_dir, "H1")
+    from ..core.jobs import read_status
+
+    age = cache_info.get("age_sec")
+    stale = age is None or age > settings.health_stale_sec
+    pipeline = read_status(settings)
+    last = pipeline.get("last") or {}
     return {
-        "status": "ok",
+        "status": "stale" if (stale and settings.enable_scheduler) else "ok",
         "phase": "P5",
         "symbols": n,
         "by_group": by_group,
@@ -90,7 +177,18 @@ def health():
         "cache_last_candle": cache_info.get("last_candle"),
         "cache_age_sec": cache_info.get("age_sec"),
         "tz": settings.tz,
+        "cache_stale": stale,
         "scheduler": bool(settings.enable_scheduler),
+        "scheduler_info": _scheduler_info(),
+        "fetch_enabled": bool(settings.enable_fetch),
+        "pipeline": {
+            "running": pipeline.get("running"),
+            "last_ok": last.get("ok"),
+            "last_trigger": last.get("trigger"),
+            "last_finished_at": last.get("finished_at"),
+            "last_fetch": (last.get("steps") or {}).get("fetch"),
+            "last_error": last.get("error"),
+        },
     }
 
 
@@ -112,25 +210,50 @@ def list_symbols():
     ]
 
 
+def _fetch_disabled() -> bool:
+    import os
+
+    settings = get_settings()
+    if os.environ.get("PA_DISABLE_FETCH", "").lower() in ("1", "true", "yes"):
+        return True
+    if "pythonanywhere" in os.environ.get("HOME", "").lower() and not settings.enable_scheduler:
+        return True
+    return not settings.enable_fetch
+
+
 @app.post("/fetch")
 def fetch_endpoint(
     tf: Literal["H1", "H4", "D", "W"] = Query("H1"),
     group: str | None = Query(None),
     limit: int = Query(500, ge=50, le=5000),
+    background: bool = Query(
+        True,
+        description="true (default): start fetch→scan→refresh in background, return 202. "
+        "false: synchronous fetch only (can take 1–3 min for 115 symbols).",
+    ),
 ):
-    """Fetch candles (local / Docker). On PythonAnywhere free WSGI this returns 501 — use console cron."""
-    import os
-
-    if os.environ.get("PA_DISABLE_FETCH", "").lower() in ("1", "true", "yes") or (
-        os.environ.get("ENABLE_SCHEDULER", "false").lower() in ("0", "false")
-        and "pythonanywhere" in os.environ.get("HOME", "").lower()
-    ):
+    """Live candle fetch. Disabled (501) on PythonAnywhere free / ENABLE_FETCH=false."""
+    if _fetch_disabled():
         raise HTTPException(
             status_code=501,
             detail=(
-                "Fetch désactivé sur PA free. "
+                "Fetch désactivé (PA free ou ENABLE_FETCH=false). "
                 "scripts/fetch_candles.py en local → upload cache → refresh_status.py --tf H1"
             ),
+        )
+    if background and not group:
+        from fastapi.responses import JSONResponse
+
+        from ..core.jobs import is_running, start_pipeline_thread
+
+        if is_running():
+            return JSONResponse(
+                status_code=409,
+                content={"started": False, "detail": "pipeline already running", "status": "/jobs/status"},
+            )
+        start_pipeline_thread(tfs=[tf], limit=limit, trigger="api")
+        return JSONResponse(
+            status_code=202, content={"started": True, "tf": tf, "status": "/jobs/status"}
         )
     groups = [g.strip() for g in group.split(",")] if group else None
     summary = fetch_all(tfs=[tf], groups=groups, limit=limit, write=True)
@@ -141,6 +264,13 @@ def fetch_endpoint(
         "elapsed_sec": round(summary.elapsed_sec, 2),
         "by_source": summary.by_source(),
     }
+
+
+@app.get("/jobs/status")
+def jobs_status():
+    from ..core.jobs import read_status
+
+    return {"pipeline": read_status(), "scheduler": _scheduler_info()}
 
 
 @app.get("/cache-status")

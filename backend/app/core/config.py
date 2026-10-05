@@ -42,6 +42,20 @@ class Settings(BaseSettings):
 
     enable_scheduler: bool = False
 
+    # Always-on host (Fly / Docker / VPS): live candle fetch + lifecycle pipeline.
+    # PythonAnywhere free keeps these off (wsgi.py answers /fetch with 501 itself).
+    enable_fetch: bool = True
+    fetch_interval_min: int = 15
+    fetch_tfs: str = "H1"
+    fetch_limit: int = 300
+    bootstrap_limit: int = 800
+    # Run a fetch right after boot when the newest H1 candle is older than this.
+    bootstrap_stale_sec: int = 2 * 3600
+    history_refresh_hour: int = 6
+    history_refresh_minute: int = 30
+    # Stale threshold reported by /health (fetch every 15 min → >3h = something is wrong)
+    health_stale_sec: int = 3 * 3600
+
     @property
     def oanda_base_url(self) -> str:
         if self.oanda_api_url:
