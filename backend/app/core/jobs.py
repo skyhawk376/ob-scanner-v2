@@ -76,11 +76,13 @@ def run_pipeline(
     group_list = settings.resolved_scan_groups(groups)
     lim = int(limit or settings.fetch_limit)
     started = time.time()
+    min_score = int(settings.default_min_score)
     summary: dict[str, Any] = {
         "trigger": trigger,
         "started_at": _now_iso(),
         "tfs": tf_list,
         "groups": group_list if group_list is not None else "ALL",
+        "min_score": min_score,
         "limit": lim,
         "steps": {},
         "ok": False,
@@ -110,10 +112,17 @@ def run_pipeline(
             if scan:
                 from .scanner import run_scan
 
-                ss = run_scan(tfs=[tf], groups=group_list, persist=True, settings=settings)
+                ss = run_scan(
+                    tfs=[tf],
+                    groups=group_list,
+                    persist=True,
+                    min_score=min_score,
+                    settings=settings,
+                )
                 summary["steps"][f"scan_{tf}"] = {
                     "zones": len(ss.zones),
                     "symbols_ok": sum(1 for s in ss.per_symbol if s.ok),
+                    "min_score": min_score,
                     "elapsed_sec": round(ss.elapsed_sec, 1),
                 }
             if refresh:
@@ -123,6 +132,7 @@ def run_pipeline(
                     tf=tf,
                     history=history,
                     groups=group_list,
+                    min_score=min_score,
                     notify=notify,
                     force_dry_telegram=None,  # honour TELEGRAM_DRY_RUN
                     settings=settings,

@@ -64,6 +64,8 @@ class Settings(BaseSettings):
     # Pipeline / API default groups when `group` omitted. "ALL" = every group (incl. NQ100).
     # UI can still enable NQ100 / ENERGIE explicitly.
     default_scan_groups: str = "METAUX,FOREX,CRYPTO"
+    # Option B volume (~1 trade/jour ouvré): min stars for scan/pipeline/UI defaults.
+    default_min_score: int = 4
 
     @property
     def oanda_base_url(self) -> str:
