@@ -142,7 +142,7 @@ def run_scan(
                 on_symbol(meta)
 
     # Global sort with XAUUSD pin
-    tf_rank = {"W": 0, "D": 1, "H4": 2, "H1": 3}
+    tf_rank = {"W": 0, "D": 1, "H4": 2, "H1": 3, "M30": 4, "M15": 5, "M5": 6}
     all_zones.sort(
         key=lambda z: (
             0 if z.symbol == "XAUUSD" else 1,

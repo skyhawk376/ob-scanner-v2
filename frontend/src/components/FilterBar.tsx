@@ -1,9 +1,12 @@
 import type { ReactNode } from 'react'
 import type { GroupId, Timeframe } from '../lib/types'
 
-const TFS: { id: Timeframe; label: string }[] = [
+export const TFS: { id: Timeframe; label: string }[] = [
+  { id: 'M5', label: 'M5' },
+  { id: 'M15', label: 'M15' },
+  { id: 'M30', label: 'M30' },
   { id: 'H1', label: 'H1' },
-  { id: 'H4', label: '4h' },
+  { id: 'H4', label: 'H4' },
   { id: 'D', label: 'Daily' },
   { id: 'W', label: 'Weekly' },
 ]
@@ -72,7 +75,7 @@ export function FilterBar({
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           className="mr-1 rounded border border-emerald-700/60 bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300"
-          title="Filtre B : ≥4★ · Métaux/Forex/Crypto · entrée mid · TP +2R (RR 1:2) · tendance H4/D1 affichée (info) · OB vierges"
+          title="Filtre B : ≥4★ · Métaux/Forex/Crypto · TF M5→Weekly · entrée mid · TP +2R (RR 1:2) · tendance H4/D1 affichée (info) · OB vierges"
         >
           Filtre B
         </span>

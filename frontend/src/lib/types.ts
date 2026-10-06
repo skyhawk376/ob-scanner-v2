@@ -1,4 +1,4 @@
-export type Timeframe = 'H1' | 'H4' | 'D' | 'W'
+export type Timeframe = 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D' | 'W'
 export type GroupId = 'NQ100' | 'METAUX' | 'ENERGIE' | 'FOREX' | 'CRYPTO'
 export type TabId = 'scanner' | 'touches' | 'reaction' | 'claude'
 export type ZoneStatus = 'active' | 'touchee' | 'reaction' | 'echec' | 'expiree' | string
@@ -95,6 +95,8 @@ export interface RealisticStats {
   not_aligned: TradeSummary
   n_aligned_unknown: number
   by_group: Record<string, TradeSummary>
+  /** Realistic trades per zone TF (M5 … W) */
+  by_tf?: Record<string, TradeSummary & { n_touched?: number; n_unfilled?: number }>
   models: Record<string, number>
 }
 

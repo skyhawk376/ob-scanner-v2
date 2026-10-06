@@ -11,7 +11,7 @@ Ce que fait l'image (1 machine, 1 worker uvicorn) :
 
 | Job (APScheduler in-process) | Fréquence |
 |---|---|
-| `pipeline` : fetch H1 (Yahoo/Binance/Kraken/Coinbase) → scan → refresh lifecycle (+ notif Telegram si activé) | toutes les `FETCH_INTERVAL_MIN` (15) min |
+| `pipeline` : tick toutes les `SCHED_TICK_MIN` (5) min → pour chaque TF due (`TF_SCHEDULE`, H1 en premier) : fetch (Yahoo/Binance/Kraken/Coinbase) → scan → refresh lifecycle (+ notif Telegram si TF ∈ `ALERT_TFS`) | M5 5 min · M15 15 · M30 30 · H1 15 · H4 60 · D 120 · W 360 |
 | `bootstrap` : même pipeline 10 s après le boot si cache vide ou > 2 h | au démarrage |
 | `history_daily` : refresh `--history` (Touches / Réaction) | 06:30 Paris |
 | digests Telegram | 07:45 / 14:15 Paris |
@@ -83,7 +83,11 @@ put /workspace/ob-scanner-v2/data/results/zones.sqlite /data/results/zones.sqlit
 | `ENABLE_SCHEDULER` | `true` | démarre APScheduler |
 | `ENABLE_FETCH` | `true` | fetch live (sinon `/fetch` → 501) |
 | `FETCH_INTERVAL_MIN` | `15` | période du pipeline (min 5) |
-| `FETCH_TFS` | `H1` | TF fetchées (`H1,H4,D`) |
+| `FETCH_TFS` | `H1` (Fly : `M5,M15,M30,H1,H4,D,W`) | TF du pipeline (fetch → scan → lifecycle) |
+| `TF_SCHEDULE` | `M5:5,M15:15,M30:30,H1:15,H4:60,D:120,W:360` | cadence par TF (min ≥ 5) |
+| `ALERT_TFS` | `M5,M15,M30,H1,H4,D,W` | TF qui envoient Telegram (ex. `H1` pour revenir à H1 seul). Un TF nouvellement suivi fait un 1er run silencieux (warm-up) : aucune alerte pour des touches antérieures |
+| `CACHE_MAX_BARS` | `M5:6000,M15:4000,M30:3000` | rétention bougies bas TF (0 = illimité) |
+| `LOWTF_EXPIRED_RETENTION_DAYS` | `3` | purge SQLite des zones M5/M15/M30 expirées |
 | `FETCH_LIMIT` / `BOOTSTRAP_LIMIT` | `300` / `800` | barres par série |
 | `CACHE_DIR` / `RESULTS_DIR` | `/data/cache` / `/data/results` | sur le volume |
 | `TELEGRAM_DRY_RUN` | `true` | `false` + secrets pour envoyer |

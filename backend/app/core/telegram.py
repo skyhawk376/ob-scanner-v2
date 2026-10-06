@@ -15,6 +15,15 @@ from .store import claim_notify, connect
 PARIS = ZoneInfo("Europe/Paris")
 
 
+_TF_LABEL = {"D": "D1", "W": "W1"}
+
+
+def tf_label(tf: str | None) -> str:
+    """Human TF label for alerts: M5 M15 M30 H1 H4 D1 W1."""
+    t = str(tf or "?").upper()
+    return _TF_LABEL.get(t, t)
+
+
 def _stars(score: int) -> str:
     return "★" * int(score) + "☆" * max(0, 5 - int(score))
 
@@ -111,9 +120,10 @@ def format_zone_message(event: str, zone: dict[str, Any]) -> str:
             f"· Entrée {entry:.6g} ({entry_edge}) · SL {sl:.6g} (au-delà bord distal) · "
             f"TP(+{r_lbl}R) {tp_n:.6g} (RR {tp_r:.1f})"
         )
+    tf_lbl = tf_label(zone.get("tf"))
     lines = [
-        f"{_stars(score)} {event_fr}",
-        f"{label} {zone.get('symbol')} {zone.get('tf')}",
+        f"{_stars(score)} {event_fr} · {tf_lbl}",
+        f"{label} {zone.get('symbol')} {tf_lbl}",
         f"· {lo:.6g}–{hi:.6g}",
         levels,
         bias_line(zone),
@@ -190,6 +200,11 @@ def notify_zone_event(
     score = int(zone.get("score") or 0)
     if score < 4 and event != "digest":
         return None
+
+    # TF gate (ALERT_TFS, default H1): M5/M15/M30/H4/D/W zones are scanned, shown and
+    # tracked, but only TFs listed in ALERT_TFS ever reach Telegram.
+    if event != "digest" and not settings.tf_alerts_enabled(zone.get("tf")):
+        return {"ok": True, "skipped": "tf_not_alerted"}
 
     # Filtre B: never notify outside the live universe (NQ100 / ENERGIE off)
     if settings.strategy_lock:
@@ -276,7 +291,7 @@ def build_digest(
     for z in near[:15]:
         d = "ACHAT" if z.get("direction") == "bull" else "VENTE"
         lines.append(
-            f"· {_stars(int(z.get('score') or 0))} {z.get('symbol')} {z.get('tf')} {d} "
+            f"· {_stars(int(z.get('score') or 0))} {z.get('symbol')} {tf_label(z.get('tf'))} {d} "
             f"({float(z.get('distance_atr') or 0):.2f} ATR)"
         )
     if stats:
@@ -299,12 +314,15 @@ def run_digest(*, settings: Settings | None = None, force_dry: bool = True, labe
 
         gmap = {i.id: i.group for i in load_instruments(settings.symbols_yaml)}
         zones = [z for z in zones if settings.zone_in_strategy(gmap.get(z.get("symbol", "")), z.get("score"))]
+    # Digest = same TFs as the alerts (ALERT_TFS, default H1)
+    zones = [z for z in zones if settings.tf_alerts_enabled(z.get("tf"))]
     now_paris = datetime.now(PARIS).strftime("%H:%M")
     stats = None
     try:
         from .monitor import compute_stats
 
-        stats = compute_stats(tf="H1", settings=settings)
+        alert_tfs = settings.alert_tf_list
+        stats = compute_stats(tf=alert_tfs[0] if len(alert_tfs) == 1 else None, settings=settings)
     except Exception as e:  # digest must still go out
         print(f"[digest] stats unavailable: {e}", flush=True)
     text = build_digest(zones, label=label or now_paris, stats=stats)

@@ -10,13 +10,31 @@ from ..core.cache import normalize_ohlc, resample_ohlc
 from .base import CandleProvider, CandlesResult
 
 # yfinance has no native 4h; we pull 1h and resample.
-# period limits: 1h max ~730d; 1d/1wk many years.
+# Yahoo limits: 5m/15m/30m only the last 60 days; 1h ~730d; 1d/1wk many years.
+# Intraday downloads are sized from `limit` (see _period_for) instead of always
+# pulling the max range: same bars after the `limit` slice, ~10x fewer bytes.
 TF_YF: dict[str, dict[str, Any]] = {
-    "H1": {"interval": "1h", "period": "730d", "native": True},
-    "H4": {"interval": "1h", "period": "730d", "native": False, "resample": "4h"},
+    "M5": {"interval": "5m", "period": "59d", "native": True, "bar_min": 5, "max_days": 59},
+    "M15": {"interval": "15m", "period": "59d", "native": True, "bar_min": 15, "max_days": 59},
+    "M30": {"interval": "30m", "period": "59d", "native": True, "bar_min": 30, "max_days": 59},
+    "H1": {"interval": "1h", "period": "730d", "native": True, "bar_min": 60, "max_days": 729,
+           "min_days": 60},
+    "H4": {"interval": "1h", "period": "730d", "native": False, "resample": "4h",
+           "bar_min": 240, "max_days": 729, "min_days": 60},
     "D": {"interval": "1d", "period": "max", "native": True},
     "W": {"interval": "1wk", "period": "max", "native": True},
 }
+
+
+def _period_for(cfg: dict[str, Any], limit: int | None) -> str:
+    """Yahoo `period` covering ~`limit` bars of the TF (weekends/closed hours ×1.6 + 3d)."""
+    bar_min = cfg.get("bar_min")
+    if not bar_min or not limit:
+        return cfg["period"]
+    days = int(limit * bar_min / 1440.0 * 1.6) + 3
+    days = max(days, int(cfg.get("min_days", 5)))
+    days = min(days, int(cfg.get("max_days", 59)))
+    return f"{days}d"
 
 
 class YFinanceProvider(CandleProvider):
@@ -54,9 +72,10 @@ class YFinanceProvider(CandleProvider):
             import yfinance as yf
 
             self._throttle()
+            period = _period_for(cfg, limit)
             ticker = yf.Ticker(remote_id)
             raw = ticker.history(
-                period=cfg["period"],
+                period=period,
                 interval=cfg["interval"],
                 auto_adjust=True,
                 actions=False,
@@ -66,7 +85,7 @@ class YFinanceProvider(CandleProvider):
                 self._throttle()
                 raw = yf.download(
                     remote_id,
-                    period=cfg["period"],
+                    period=period,
                     interval=cfg["interval"],
                     auto_adjust=True,
                     progress=False,
@@ -109,7 +128,7 @@ class YFinanceProvider(CandleProvider):
                 source=self.name,
                 df=df,
                 ok=True,
-                meta={"interval": cfg["interval"], "resampled": not cfg.get("native", True)},
+                meta={"interval": cfg["interval"], "period": period, "resampled": not cfg.get("native", True)},
             )
         except Exception as e:
             return CandlesResult(

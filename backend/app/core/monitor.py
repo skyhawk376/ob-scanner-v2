@@ -44,11 +44,23 @@ class _Enricher:
         self.settings = settings
         self._series: dict[str, dict] = {}
         self._m15: dict[str, Any] = {}
+        self._h1: dict[str, Any] = {}
 
     def series(self, symbol: str, h1) -> dict:
         if symbol not in self._series:
             self._series[symbol] = series_for(self.settings.cache_dir, symbol, h1=h1)
         return self._series[symbol]
+
+    def h1(self, symbol: str, df, tf: str | None):
+        """Trade sim + bias always run on H1 (+M15) whatever the zone TF: same rules
+        (fill at mid, TP +R / SL / time stop 1h) for M5…W zones. H1 zones pass their own
+        H1 frame (unchanged behaviour)."""
+        if str(tf or "H1").upper() == "H1":
+            return df
+        if symbol not in self._h1:
+            h = read_cache(self.settings.cache_dir, symbol, "H1")
+            self._h1[symbol] = None if h is None or h.empty else h
+        return self._h1[symbol]
 
     def m15(self, symbol: str):
         if symbol not in self._m15:
@@ -61,6 +73,9 @@ class _Enricher:
         if not zone.get("touched_at") or zone.get("status") not in _TOUCHED:
             return zone
         sym = str(zone.get("symbol"))
+        h1 = self.h1(sym, h1, zone.get("tf"))
+        if h1 is None:
+            return zone
         try:
             ensure_zone_bias(zone, cache_dir=self.settings.cache_dir, h1=h1,
                              series=self.series(sym, h1))
@@ -93,6 +108,28 @@ class RefreshSummary:
     mode: str = "refresh"
 
 
+def _prune_lowtf_expired(conn, tf: str, settings: Settings) -> int:
+    """Delete M5/M15/M30 zones expired more than LOWTF_EXPIRED_RETENTION_DAYS ago.
+    Touched zones (touchee/reaction/echec) are kept for stats. Never raises."""
+    from .timeframes import INTRADAY_LOW_TFS
+
+    tf_u = str(tf or "").upper()
+    days = float(settings.lowtf_expired_retention_days or 0)
+    if tf_u not in INTRADAY_LOW_TFS or days <= 0:
+        return 0
+    try:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cur = conn.execute(
+            "DELETE FROM zones WHERE tf=? AND status='expiree' AND expired_at IS NOT NULL "
+            "AND expired_at < ?",
+            (tf_u, cutoff),
+        )
+        conn.commit()
+        return int(cur.rowcount or 0)
+    except Exception:  # pragma: no cover
+        return 0
+
+
 def _group_map(settings: Settings) -> dict[str, str]:
     return {i.id: i.group for i in load_instruments(settings.symbols_yaml)}
 
@@ -107,6 +144,7 @@ def refresh_statuses(
     min_score: int = 4,
     groups: Iterable[str] | None = None,
     symbols: Iterable[str] | None = None,
+    notify_since: float | None = None,
 ) -> RefreshSummary:
     """Update lifecycle for stored zones, or backfill from history detection.
 
@@ -207,6 +245,8 @@ def refresh_statuses(
             summary.n_zones = len(payloads)
             summary.by_status = dict(Counter(p.get("status", "active") for p in payloads))
         else:
+            # Low TFs: drop long-expired zones so SQLite / refresh stay small
+            _prune_lowtf_expired(conn, tf, settings)
             # Refresh existing DB rows
             zones = list_zones(conn, tf=tf, min_score=1, limit=5000)
             filtered = []
@@ -217,8 +257,12 @@ def refresh_statuses(
                     continue
                 filtered.append(z)
 
+            frames: dict[tuple[str, str], Any] = {}
             for z in filtered:
-                df = read_cache(settings.cache_dir, z["symbol"], z.get("tf") or tf)
+                key = (z["symbol"], str(z.get("tf") or tf).upper())
+                if key not in frames:
+                    frames[key] = read_cache(settings.cache_dir, key[0], key[1])
+                df = frames[key]
                 if df is None or df.empty:
                     continue
                 prev = z.get("status") or STATUS_ACTIVE
@@ -232,6 +276,9 @@ def refresh_statuses(
                 conn.commit()
                 summary.updated += 1
                 if life.status != prev:
+                    # Go-live guard: a TF that just started alerting never notifies zones
+                    # first touched before it was armed (no burst at deploy).
+                    zone_notify = notify and _touched_since(merged.get("touched_at"), notify_since)
                     summary.transitions.append(
                         {
                             "id": merged["id"],
@@ -240,7 +287,7 @@ def refresh_statuses(
                             "to": life.status,
                         }
                     )
-                    if notify:
+                    if zone_notify:
                         if life.status == STATUS_TOUCHEE and prev == STATUS_ACTIVE:
                             n = notify_zone_event(
                                 "touchee",
@@ -284,6 +331,18 @@ def refresh_statuses(
 
     summary.elapsed_sec = time.time() - t0
     return summary
+
+
+def _touched_since(touched_at: str | None, since: float | None) -> bool:
+    """True when no guard is set or the first touch (bar open) is at/after `since`."""
+    if since is None:
+        return True
+    t = _parse_ts(touched_at)
+    if t is None:
+        return False
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
+    return t.timestamp() >= float(since)
 
 
 def _parse_ts(s: str | None):
@@ -362,6 +421,18 @@ def realistic_stats(
     by_group: dict[str, Any] = {}
     for g in sorted({gmap.get(z.get("symbol", ""), "?") for z in closed}):
         by_group[g] = split(lambda z, g=g: gmap.get(z.get("symbol", ""), "?") == g)
+    from .timeframes import TF_RANK
+
+    by_tf: dict[str, Any] = {}
+    for t in sorted({str(z.get("tf") or "?") for z in touched}, key=lambda t: -TF_RANK.get(t, -1)):
+        tz = [z for z in touched if str(z.get("tf") or "?") == t]
+        summ = trade_summary([z for z in tz if z.get("trade_status") == TRADE_CLOSED])
+        by_tf[t] = {
+            **summ,
+            "n_touched": len(tz),
+            "n_unfilled": sum(1 for z in tz if z.get("trade_status") == TRADE_UNFILLED),
+            "trades_per_day": (summ["n"] / wd) if wd >= 1 else None,
+        }
     return {
         "method": "fill au mid après touch · TP +%gR / SL -1R / time stop 1h après fill · "
         "M15 si dispo sinon H1 conservateur (SL d'abord)" % reaction_r_from_env(),
@@ -387,6 +458,7 @@ def realistic_stats(
         "not_aligned": {**nal, "trades_per_day": (nal["n"] / wd) if wd >= 1 else None},
         "n_aligned_unknown": sum(1 for z in closed if z.get("aligned_h4d1") is None),
         "by_group": by_group,
+        "by_tf": by_tf,
         "models": dict(Counter(z.get("trade_model") or "?" for z in closed)),
     }
 

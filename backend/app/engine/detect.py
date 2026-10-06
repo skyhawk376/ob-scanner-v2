@@ -546,7 +546,7 @@ def detect_zones(
             continue
         out.append(z)
 
-    tf_rank = {"W": 0, "D": 1, "H4": 2, "H1": 3}
+    tf_rank = {"W": 0, "D": 1, "H4": 2, "H1": 3, "M30": 4, "M15": 5, "M5": 6}
     out.sort(
         key=lambda z: (
             0 if z.symbol == "XAUUSD" else 1,

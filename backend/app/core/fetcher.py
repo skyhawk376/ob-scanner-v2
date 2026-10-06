@@ -84,7 +84,13 @@ def fetch_instrument_tf(
         if result.ok and result.n_bars > 0:
             cpath = None
             if write:
-                merged = merge_cache(settings.cache_dir, inst.id, tf, result.df)
+                merged = merge_cache(
+                    settings.cache_dir,
+                    inst.id,
+                    tf,
+                    result.df,
+                    max_bars=settings.cache_max_bars_for(tf),
+                )
                 cpath = str(cache_path(settings.cache_dir, inst.id, tf))
                 n_bars = len(merged)
             else:
@@ -138,7 +144,9 @@ def fetch_all(
 
     hub = ProviderHub(settings)
     summary = FetchSummary(started_at=time.time())
-    tf_list = [t.upper() for t in tfs]
+    from .timeframes import normalize_tf
+
+    tf_list = [normalize_tf(t) or t.upper() for t in tfs]
 
     for inst in filtered:
         for tf in tf_list:

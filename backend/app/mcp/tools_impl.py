@@ -92,8 +92,10 @@ def tool_get_zone(zone_id: str) -> str:
 
 
 def tool_scan_now(tf: str = "H1", group: str | None = None, min_stars: int = 4) -> str:
-    tf = tf.upper()
-    if tf not in ("H1", "H4", "D", "W"):
+    from ..core.timeframes import ALL_TFS, normalize_tf
+
+    tf = normalize_tf(tf) or tf.upper()
+    if tf not in ALL_TFS:
         return _json({"error": f"unsupported tf {tf}"})
     groups = get_settings().resolved_scan_groups(group)
     summary = run_scan(

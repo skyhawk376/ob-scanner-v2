@@ -17,7 +17,7 @@ STATUS_REACTION = "reaction"
 STATUS_ECHEC = "echec"
 STATUS_EXPIREE = "expiree"
 
-EXPIRY_BARS = {"H1": 200, "H4": 150, "D": 120, "W": 52}
+EXPIRY_BARS = {"M5": 200, "M15": 200, "M30": 200, "H1": 200, "H4": 150, "D": 120, "W": 52}
 MAX_DISTANCE_ATR = 8.0
 
 

@@ -127,8 +127,12 @@ def write_cache(cache_dir: Path, symbol: str, tf: str, df: pd.DataFrame) -> Path
     return path
 
 
-def merge_cache(cache_dir: Path, symbol: str, tf: str, new_df: pd.DataFrame) -> pd.DataFrame:
-    """Idempotent merge on timestamp; last write wins for duplicates."""
+def merge_cache(
+    cache_dir: Path, symbol: str, tf: str, new_df: pd.DataFrame, *, max_bars: int = 0
+) -> pd.DataFrame:
+    """Idempotent merge on timestamp; last write wins for duplicates.
+
+    max_bars > 0 keeps only the newest N bars (low-TF retention)."""
     existing = read_cache(cache_dir, symbol, tf)
     incoming = normalize_ohlc(new_df)
     if existing.empty:
@@ -138,6 +142,8 @@ def merge_cache(cache_dir: Path, symbol: str, tf: str, new_df: pd.DataFrame) -> 
     else:
         merged = pd.concat([existing, incoming])
         merged = merged[~merged.index.duplicated(keep="last")].sort_index()
+    if max_bars and len(merged) > max_bars:
+        merged = merged.iloc[-int(max_bars):]
     write_cache(cache_dir, symbol, tf, merged)
     return merged
 

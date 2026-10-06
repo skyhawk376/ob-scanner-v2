@@ -47,7 +47,7 @@ def list_zones(
     status: str | None = None,
     limit: int = 50,
 ) -> str:
-    """Filters: tf=H1|H4|D|W, group=NQ100|METAUX|ENERGIE|FOREX|CRYPTO, status=active|touchee|reaction|echec|expiree."""
+    """Filters: tf=M5|M15|M30|H1|H4|D|W, group=NQ100|METAUX|ENERGIE|FOREX|CRYPTO, status=active|touchee|reaction|echec|expiree."""
     return tool_list_zones(tf=tf, group=group, min_stars=min_stars, status=status, limit=limit)
 
 

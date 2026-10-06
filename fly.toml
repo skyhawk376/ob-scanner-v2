@@ -1,4 +1,4 @@
-# OB scanner v2 — always-on (live fetch every 15 min + lifecycle refresh)
+# OB scanner v2 — always-on (multi-TF M5…W live fetch + lifecycle refresh)
 # Deploy: see DEPLOY_FLY.md. Rollback = PythonAnywhere v2 stays untouched.
 app = "ob-scanner-v2"
 primary_region = "cdg"
@@ -15,7 +15,14 @@ kill_timeout = "30s"
   ENABLE_SCHEDULER = "true"
   ENABLE_FETCH = "true"
   FETCH_INTERVAL_MIN = "15"
-  FETCH_TFS = "H1"
+  # Multi-TF scanner: every TF fetched/scanned/tracked at its own cadence (minutes);
+  # scheduler ticks every 5 min, H1 processed first.
+  FETCH_TFS = "M5,M15,M30,H1,H4,D,W"
+  TF_SCHEDULE = "M5:5,M15:15,M30:30,H1:15,H4:60,D:120,W:360"
+  CACHE_MAX_BARS = "M5:6000,M15:4000,M30:3000"
+  # Telegram alerts per TF (narrow e.g. to "H1" without code change). New TFs are armed
+  # after a silent warm-up run: no alerts for zones touched before go-live.
+  ALERT_TFS = "M5,M15,M30,H1,H4,D1,W1"
   FETCH_LIMIT = "300"
   TELEGRAM_DRY_RUN = "true"
   ENABLE_SOFT_REACTION = "false"

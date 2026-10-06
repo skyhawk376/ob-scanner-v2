@@ -8,7 +8,7 @@ from typing import Any
 import pandas as pd
 
 # Canonical TFs used by the scanner
-TIMEFRAMES = ("H1", "H4", "D", "W")
+TIMEFRAMES = ("M5", "M15", "M30", "H1", "H4", "D", "W")
 
 
 @dataclass

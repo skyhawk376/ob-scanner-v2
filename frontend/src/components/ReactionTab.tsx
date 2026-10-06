@@ -24,6 +24,7 @@ function fmtTs(s?: string | null) {
 
 export function ReactionTab({ tf }: { tf: Timeframe }) {
   const [stats, setStats] = useState<StatsResponse | null>(null)
+  const [statsAll, setStatsAll] = useState<StatsResponse | null>(null)
   const [zones, setZones] = useState<Zone[]>([])
   const [pending, setPending] = useState<Zone[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,6 +33,9 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
   const load = async () => {
     setLoading(true)
     try {
+      fetchStats()
+        .then(setStatsAll)
+        .catch(() => setStatsAll(null))
       const [s, z, p] = await Promise.all([
         fetchStats(tf),
         fetchZones({ tf, minScore: 4, limit: 500, statuses: 'reaction,echec' }),
@@ -88,6 +92,7 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
         <>
           {stats.realistic && <RealisticBlock title="Stats réelles (historique)" r={stats.realistic} />}
           {stats.realistic_7d && <RealisticBlock title="Stats réelles — 7 derniers jours" r={stats.realistic_7d} compact />}
+          {statsAll?.realistic?.by_tf && <ByTfBlock r={statsAll.realistic} current={tf} />}
 
           <h3 className="mb-2 mt-6 text-sm font-medium text-zinc-400">
             Ancienne méthode (géré dès le 1er contact, sans time stop — surestime)
@@ -358,6 +363,47 @@ function RealisticBlock({ title, r, compact }: { title: string; r: RealisticStat
             Object.entries(r.by_group || {}).map(([g, v]) => (
               <SummaryRow key={g} label={g} s={v} wd={r.weekdays} />
             ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+const TF_ORDER = ['M5', 'M15', 'M30', 'H1', 'H4', 'D', 'W']
+const TF_LABEL: Record<string, string> = { D: 'Daily', W: 'Weekly' }
+
+function ByTfBlock({ r, current }: { r: RealisticStats; current: string }) {
+  const rows = Object.entries(r.by_tf || {}).sort(
+    ([a], [b]) => TF_ORDER.indexOf(a) - TF_ORDER.indexOf(b),
+  )
+  if (!rows.length) return null
+  return (
+    <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+      <div className="mb-2 text-sm font-medium text-zinc-300">Stats réelles par TF (tous TF)</div>
+      <table className="w-full text-xs">
+        <thead className="text-zinc-500">
+          <tr>
+            <th className="py-1 text-left">TF</th>
+            <th className="py-1 text-right">Touchées</th>
+            <th className="py-1 text-right">Non remplis</th>
+            <th className="py-1 text-right">Trades</th>
+            <th className="py-1 text-right">WR</th>
+            <th className="py-1 text-right">R moy.</th>
+            <th className="py-1 text-right">/ jour</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([t, v]) => (
+            <tr key={t} className={`border-t border-zinc-800/60 ${t === current ? 'bg-blue-950/20' : ''}`}>
+              <td className="py-1 text-zinc-300">{TF_LABEL[t] ?? t}</td>
+              <td className="py-1 text-right text-zinc-400">{v.n_touched ?? '—'}</td>
+              <td className="py-1 text-right text-zinc-400">{v.n_unfilled ?? '—'}</td>
+              <td className="py-1 text-right text-zinc-400">{v.n}</td>
+              <td className="py-1 text-right text-zinc-200">{pct(v.wr)}</td>
+              <td className={`py-1 text-right ${(v.avg_r ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtR(v.avg_r)}</td>
+              <td className="py-1 text-right text-zinc-400">{v.trades_per_day != null ? v.trades_per_day.toFixed(2) : '—'}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

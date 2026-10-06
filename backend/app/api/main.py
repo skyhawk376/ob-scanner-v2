@@ -17,7 +17,21 @@ from ..core.monitor import compute_stats, refresh_statuses
 from ..core.scanner import load_stored_zones, run_scan
 from ..core.symbols import count_by_group, load_instruments
 from ..core.telegram import run_digest, send_telegram
+from ..core.timeframes import ALL_TFS, normalize_tf
 from ..providers.registry import ProviderHub
+
+# Canonical TFs (M5 … W). Daily/Weekly aliases are normalised in _tf_or_400.
+TfParam = Literal["M5", "M15", "M30", "H1", "H4", "D", "W"]
+
+
+def _tf_opt(tf: str | None) -> str | None:
+    """Optional TF filter (accepts aliases like Daily, 1W, 15m); 400 on unknown."""
+    if tf is None or not str(tf).strip():
+        return None
+    t = normalize_tf(tf)
+    if t is None:
+        raise HTTPException(status_code=400, detail=f"tf inconnu: {tf} (attendu: {','.join(ALL_TFS)})")
+    return t
 
 app = FastAPI(
     title="OB 5-star Scanner",
@@ -62,10 +76,14 @@ def _maybe_scheduler():
             job_defaults={"coalesce": True, "max_instances": 1, "misfire_grace_time": 300},
         )
         if settings.enable_fetch:
+            from ..core.jobs import run_due
+
+            # Tick every SCHED_TICK_MIN; each TF runs when its TF_SCHEDULE cadence is due
+            # (M5 5 min · M15/H1 15 min · M30 30 min · H4 1 h · D 2 h · W 6 h by default).
             sched.add_job(
-                lambda: run_pipeline(trigger="schedule"),
+                lambda: run_due(trigger="schedule"),
                 "interval",
-                minutes=max(5, settings.fetch_interval_min),
+                minutes=max(1, settings.sched_tick_min),
                 id="pipeline",
                 replace_existing=True,
             )
@@ -103,17 +121,15 @@ def _maybe_scheduler():
             replace_existing=True,
         )
         if settings.enable_fetch:
-            info = cache_freshness(settings.cache_dir, "H1")
-            age = info.get("age_sec")
-            if age is None or age > settings.bootstrap_stale_sec:
-                lim = settings.bootstrap_limit if age is None else settings.fetch_limit
-                sched.add_job(
-                    lambda: run_pipeline(trigger="bootstrap", limit=lim),
-                    "date",
-                    run_date=datetime.now(sched.timezone) + timedelta(seconds=10),
-                    id="bootstrap",
-                    replace_existing=True,
-                )
+            # Boot: run every due TF ~10 s after start (TFs with an empty cache get
+            # BOOTSTRAP_LIMIT bars; a TF never run before is due immediately).
+            sched.add_job(
+                lambda: run_due(trigger="bootstrap"),
+                "date",
+                run_date=datetime.now(sched.timezone) + timedelta(seconds=10),
+                id="bootstrap",
+                replace_existing=True,
+            )
         sched.start()
         app.state.scheduler = sched
         print(f"[scheduler] started jobs={[j.id for j in sched.get_jobs()]}", flush=True)
@@ -164,7 +180,30 @@ def _strategy_info() -> dict:
         "reaction_r": float(s.reaction_r),
         "soft_reaction": bool(s.enable_soft_reaction),
         "virgin_only": True,
+        "tfs": s.pipeline_tfs if s.enable_fetch else list(ALL_TFS),
+        "tf_schedule_min": s.tf_cadence,
+        "alert_tfs": s.alert_tf_list,
     }
+
+
+def _tf_status(settings) -> dict:
+    """Per-TF last run (from tf_runs.json) + cadence — no disk scan of the cache."""
+    from ..core.jobs import read_tf_runs
+
+    runs = read_tf_runs(settings)
+    out = {}
+    for tf in settings.pipeline_tfs:
+        r = runs.get(tf) or {}
+        out[tf] = {
+            "every_min": settings.tf_cadence.get(tf),
+            "last_run": r.get("last_run"),
+            "zones": r.get("zones"),
+            "fetch_ok": r.get("fetch_ok"),
+            "fetch_fail": r.get("fetch_fail"),
+            "alerts": settings.tf_alerts_enabled(tf),
+            "armed_at": r.get("armed_at"),
+        }
+    return out
 
 
 @app.get("/strategy")
@@ -214,6 +253,8 @@ def health():
         "fetch_enabled": bool(settings.enable_fetch),
         "entry_mode": (settings.entry_mode or "mid").strip().lower(),
         "strategy": _strategy_info(),
+        "alert_tfs": settings.alert_tf_list,
+        "tf_status": _tf_status(settings),
         "pipeline": {
             "running": pipeline.get("running"),
             "last_ok": last.get("ok"),
@@ -256,7 +297,7 @@ def _fetch_disabled() -> bool:
 
 @app.post("/fetch")
 def fetch_endpoint(
-    tf: Literal["H1", "H4", "D", "W"] = Query("H1"),
+    tf: TfParam = Query("H1"),
     group: str | None = Query(None),
     limit: int = Query(500, ge=50, le=5000),
     background: bool = Query(
@@ -307,14 +348,14 @@ def jobs_status():
 
 
 @app.get("/cache-status")
-def cache_status(tf: Literal["H1", "H4", "D", "W"] = Query("H1")):
+def cache_status(tf: TfParam = Query("H1")):
     settings = get_settings()
     return cache_freshness(settings.cache_dir, tf)
 
 
 @app.post("/scan")
 def scan_endpoint(
-    tf: Literal["H1", "H4", "D", "W"] = Query("H1"),
+    tf: TfParam = Query("H1"),
     group: str | None = Query(None),
     symbols: str | None = Query(None),
     min_score: int = Query(4, ge=1, le=5),
@@ -373,7 +414,7 @@ def zones_endpoint(
 ):
     st_list = [s.strip() for s in statuses.split(",")] if statuses else None
     zones = load_stored_zones(
-        tf=tf,
+        tf=_tf_opt(tf),
         min_score=min_score,
         symbol=symbol,
         group=group,
@@ -388,7 +429,7 @@ def zones_endpoint(
 @app.get("/candles/{symbol}")
 def candles_endpoint(
     symbol: str,
-    tf: Literal["H1", "H4", "D", "W"] = Query("H1"),
+    tf: TfParam = Query("H1"),
     limit: int = Query(200, ge=20, le=5000),
 ):
     settings = get_settings()
@@ -414,7 +455,7 @@ def candles_endpoint(
 
 @app.post("/refresh")
 def refresh_endpoint(
-    tf: Literal["H1", "H4", "D", "W"] = Query("H1"),
+    tf: TfParam = Query("H1"),
     history: bool = Query(
         False,
         description="Re-detect including mitigated and classify lifecycle (for Touches/Réaction)",
@@ -447,7 +488,7 @@ def refresh_endpoint(
 
 @app.get("/stats")
 def stats_endpoint(tf: str | None = Query(None)):
-    return compute_stats(tf=tf)
+    return compute_stats(tf=_tf_opt(tf))
 
 
 @app.post("/telegram/digest")

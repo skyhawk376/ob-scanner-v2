@@ -75,19 +75,28 @@ export default function App() {
         setGroupMap(m)
       })
       .catch(() => {})
-    fetchZones({ tf: 'H1', minScore: 4, limit: 200, activeOnly: true, groups: [...DEFAULT_GROUPS] })
-      .then((z) => {
-        if (z.length) {
-          setZones(sortZones(z))
-          setHasScanned(true)
-        }
-      })
-      .catch(() => {})
   }, [])
 
   useEffect(() => {
     refreshCacheBadge(tf)
   }, [tf, refreshCacheBadge])
+
+  // TF / ★ / groups change → show the zones the scheduler already stored for that TF
+  // (every TF is fetched + scanned in the background; « Scanner » re-runs it on demand).
+  useEffect(() => {
+    let cancelled = false
+    fetchZones({ tf, minScore, limit: 300, activeOnly: true, groups })
+      .then((z) => {
+        if (cancelled) return
+        setZones(sortZones(z))
+        setHasScanned(true)
+        setElapsed(null)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [tf, minScore, groups])
 
   const toggleGroup = useCallback((g: GroupId) => {
     setGroups((prev) => {

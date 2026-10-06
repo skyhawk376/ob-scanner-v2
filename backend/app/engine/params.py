@@ -62,6 +62,9 @@ def require_entry_fill_for_mode(entry_mode: str | None = None) -> bool:
 def params_for_tf(tf: str) -> EngineParams:
     tf = tf.upper()
     mode = entry_mode_from_env()
+    if tf in ("M5", "M15", "M30"):
+        # Same engine as H1 (pivot 3, 500 bars); ★5 = session at OB formation like H1.
+        return EngineParams(pivot_n=3, lookback=500, entry_mode=mode)
     if tf in ("H1",):
         return EngineParams(pivot_n=3, lookback=500, entry_mode=mode)
     if tf in ("H4",):

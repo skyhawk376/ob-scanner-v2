@@ -46,7 +46,22 @@ class Settings(BaseSettings):
     # PythonAnywhere free keeps these off (wsgi.py answers /fetch with 501 itself).
     enable_fetch: bool = True
     fetch_interval_min: int = 15
+    # TFs handled by the live pipeline (fetch → scan → lifecycle). Fly sets all 7:
+    # M5,M15,M30,H1,H4,D,W. Each TF runs at its own cadence (TF_SCHEDULE).
     fetch_tfs: str = "H1"
+    # Per-TF cadence in minutes. The scheduler ticks every SCHED_TICK_MIN and runs the
+    # TFs that are due (H1 first so the Filtre B / Telegram path keeps its latency).
+    tf_schedule: str = "M5:5,M15:15,M30:30,H1:15,H4:60,D:120,W:360"
+    sched_tick_min: int = 5
+    # Low-TF cache retention (bars kept per symbol/TF; 0 = unlimited). Detection only
+    # needs ~500 bars; lifecycle ≤ 200 bars after the OB.
+    cache_max_bars: str = "M5:6000,M15:4000,M30:3000"
+    # Expired low-TF zones (M5/M15/M30) are pruned from SQLite after N days.
+    lowtf_expired_retention_days: float = 3.0
+    # Telegram alerts only for zones of these TFs (default: all 7, user request
+    # 2026-10-06). Narrow with e.g. ALERT_TFS=H1 — no code change needed. A TF that
+    # starts alerting is armed after a silent warm-up run (no burst of old touches).
+    alert_tfs: str = "M5,M15,M30,H1,H4,D,W"
     fetch_limit: int = 300
     bootstrap_limit: int = 800
     # Run a fetch right after boot when the newest H1 candle is older than this.
@@ -79,6 +94,44 @@ class Settings(BaseSettings):
 
     # Entry: proximal (bull=OB high / bear=OB low) | mid (legacy 50% / open)
     entry_mode: str = "mid"
+
+    @property
+    def pipeline_tfs(self) -> list[str]:
+        from .timeframes import by_priority, parse_tf_list
+
+        return by_priority(parse_tf_list(self.fetch_tfs)) or ["H1"]
+
+    @property
+    def tf_cadence(self) -> dict[str, int]:
+        from .timeframes import parse_schedule
+
+        return parse_schedule(self.tf_schedule, self.pipeline_tfs)
+
+    @property
+    def alert_tf_list(self) -> list[str]:
+        from .timeframes import parse_tf_list
+
+        return parse_tf_list(self.alert_tfs)
+
+    def tf_alerts_enabled(self, tf: str | None) -> bool:
+        from .timeframes import normalize_tf
+
+        return (normalize_tf(tf) or "") in self.alert_tf_list
+
+    def cache_max_bars_for(self, tf: str) -> int:
+        from .timeframes import normalize_tf
+
+        want = normalize_tf(tf)
+        for part in (self.cache_max_bars or "").split(","):
+            if ":" not in part:
+                continue
+            k, v = part.split(":", 1)
+            if normalize_tf(k) == want:
+                try:
+                    return max(0, int(v))
+                except ValueError:
+                    return 0
+        return 0
 
     @property
     def oanda_base_url(self) -> str:

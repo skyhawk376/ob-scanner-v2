@@ -50,7 +50,7 @@ export function TopNav({
       <div className="flex items-center gap-3 text-xs">
         {cacheAgeLabel && (
           <span
-            title="Âge de la dernière bougie en cache (H1)"
+            title="Âge de la dernière bougie en cache (TF sélectionné)"
             className={
               cacheStale
                 ? 'rounded-full border border-amber-700/60 bg-amber-950/50 px-2.5 py-1 text-amber-200'
