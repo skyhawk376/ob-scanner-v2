@@ -1,0 +1,24 @@
+{
+ "K_configs": 248,
+ "eligible": 144,
+ "bonferroni_t": 3.72,
+ "winners": [
+  "family=A_OB|min_score=4|trend=D1|tp=1|session=any|basket=ALL",
+  "family=E_PDHL|mode=fade|window=EU|tp=2|fod",
+  "family=B_SWEEP|window=LON|entry=market|tp=2R|fod",
+  "family=D_FVG|window=EU|trend=H1|entry=prox|sl=c1|tp=2|fod",
+  "family=C_ORB|open=EU09|range=30|sl=opp|tp=2|filter=d1|fod"
+ ],
+ "top10_train": [
+  "family=A_OB|min_score=4|trend=D1|tp=1|session=any|basket=ALL",
+  "family=A_OB|min_score=4|trend=D1|tp=2|session=any|basket=ALL",
+  "family=E_PDHL|mode=fade|window=EU|tp=2|fod",
+  "family=A_OB|min_score=4|trend=H4|tp=1|session=any|basket=ALL",
+  "family=B_SWEEP|window=LON|entry=market|tp=2R|fod",
+  "family=B_SWEEP|window=LON|entry=market|tp=mid|fod",
+  "family=B_SWEEP|window=LON|entry=market|tp=1R|fod",
+  "family=D_FVG|window=EU|trend=H1|entry=prox|sl=c1|tp=2|fod",
+  "family=A_OB|min_score=4|trend=H4|tp=2|session=any|basket=ALL",
+  "family=D_FVG|window=US|trend=H4|entry=prox|sl=c1|tp=2|fod"
+ ]
+}

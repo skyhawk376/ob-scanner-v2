@@ -1,0 +1,6 @@
+family,configs,train_net_pos,test_net_pos,both_net_pos,best_train_net,median_train_net,median_test_net,best_train_gross,median_train_gross,median_test_gross,train_gross_pos,both_gross_pos
+A_OB,48,0,0,0,-0.087,-0.165,-0.286,0.098,0.025,-0.126,33,3
+B_SWEEP,12,0,0,0,-0.298,-0.368,-0.366,0.069,0.01,0.031,8,5
+C_ORB,48,0,0,0,-0.105,-0.275,-0.248,0.059,0.0,-0.018,24,12
+D_FVG,32,0,0,0,-0.112,-0.211,-0.184,0.104,-0.018,0.012,9,7
+E_PDHL,8,0,0,0,-0.125,-0.167,-0.138,0.004,-0.042,-0.022,1,1

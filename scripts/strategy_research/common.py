@@ -78,10 +78,10 @@ def load_m1(sym: str) -> pd.DataFrame:
 @lru_cache(maxsize=None)
 def arrays(sym: str):
     df = load_m1(sym)
-    t = df.index.asi8.astype(np.int64)  # ns
+    t = df.index.as_unit("ns").asi8.astype(np.int64)  # ns (pandas 3 may default to us)
     loc = df.index.tz_convert("Europe/Paris")
     mod = (loc.hour * 60 + loc.minute).to_numpy(np.int32)          # Paris minute of day
-    day = (loc.normalize().asi8 // 86_400_000_000_000).astype(np.int64)  # Paris calendar day id
+    day = (loc.normalize().as_unit("ns").asi8 // 86_400_000_000_000).astype(np.int64)  # Paris calendar day id
     return dict(t=t, o=df.open.to_numpy(), h=df.high.to_numpy(), l=df.low.to_numpy(), c=df.close.to_numpy(),
                 mod=mod, day=day, dow=loc.dayofweek.to_numpy(np.int8), index=df.index)
 
@@ -194,7 +194,7 @@ def simulate(req: pd.DataFrame, cost_mult: float = 1.0) -> pd.DataFrame:
     for sym, g in req.groupby("sym", sort=False):
         A = arrays(sym)
         g = g.copy()
-        ta = pd.DatetimeIndex(g["t_active"]).tz_convert("UTC").asi8
+        ta = pd.DatetimeIndex(g["t_active"]).tz_convert("UTC").as_unit("ns").asi8
         si = np.searchsorted(A["t"], ta, side="left").astype(np.int64)
         px = g["level"].to_numpy(float)
         sp, cm, sl_ = zip(*[costs(sym, p) for p in px])

@@ -1,7 +1,8 @@
 """Family A — causal walk-forward OB 5-star detection on long H1 history using the repo engine
 (backend/app/engine/detect.py, unchanged). At every H1 bar j we call detect_zones on the last 502 bars
 (engine drops the last bar as 'forming', so it sees bars <= j-1; lookback 500 as live). The first time a
-zone (direction, ts_ob) appears with score >= 3 (fresh + FVG required) is recorded with its stars at that time.
+zone (direction, ts_ob) appears with score >= L (fresh + FVG required) is recorded separately for L in {4, 5}
+(field 'level'), with its stars at that time (= when the live scanner would first alert it at that threshold).
 The zone is therefore known at det_time = open time of bar j (= close of bar j-1).
 Output: data/cache/strategy_research/ob_zones.pkl
 """
@@ -24,14 +25,18 @@ def run(sym: str):
     t0 = time.time()
     for j in range(WARM, len(h)):
         sub = h.iloc[max(0, j - 502): j + 1]
-        for z in detect_zones(sub, symbol=sym, tf="H1", params=p, min_score=3, require_fresh=True, require_fvg=True):
-            key = (z.direction, z.ts_ob)
-            if key in seen:
-                continue
-            seen.add(key)
-            d = z.to_dict()
-            d["det_time"] = h.index[j]
-            zones.append(d)
+        for z in detect_zones(sub, symbol=sym, tf="H1", params=p, min_score=4, require_fresh=True, require_fvg=True):
+            for lvl in (4, 5):
+                if z.score < lvl:
+                    continue
+                key = (z.direction, z.ts_ob, lvl)
+                if key in seen:
+                    continue
+                seen.add(key)
+                d = z.to_dict()
+                d["det_time"] = h.index[j]
+                d["level"] = lvl
+                zones.append(d)
     print(sym, len(h), "zones", len(zones), f"{time.time()-t0:.0f}s", flush=True)
     return sym, zones
 

@@ -1,0 +1,22 @@
+{
+ "family=A_OB|min_score=4|trend=D1|tp=1|session=any|basket=ALL": {
+  "train_gross": 0.0870634373716519,
+  "test_gross": 0.02209495796601274
+ },
+ "family=E_PDHL|mode=fade|window=EU|tp=2|fod": {
+  "train_gross": 0.02285521821548945,
+  "test_gross": -0.07556297514090903
+ },
+ "family=B_SWEEP|window=LON|entry=market|tp=2R|fod": {
+  "train_gross": -0.038998688234702546,
+  "test_gross": 0.02974776550068431
+ },
+ "family=D_FVG|window=EU|trend=H1|entry=prox|sl=c1|tp=2|fod": {
+  "train_gross": 0.042843492845471925,
+  "test_gross": -0.008926769742655064
+ },
+ "family=C_ORB|open=EU09|range=30|sl=opp|tp=2|filter=d1|fod": {
+  "train_gross": -0.1726731348937018,
+  "test_gross": -0.19354058249968042
+ }
+}

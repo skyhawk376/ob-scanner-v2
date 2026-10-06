@@ -1,6 +1,6 @@
 # Pre-registration — strategy research (written BEFORE any backtest result was looked at)
 
-Written: 2026-10-06 ~11:20 CEST. Data: M1 2023-01-02 → 2026-09-30 (HistData = Dukascopy BID M1 for FX/metals/indices; Binance spot M1 for crypto).
+Committed 2026-10-06 11:02 CEST (commit 8b8dbe5), before any grid was run (first grid output 11:06 CEST). Data: M1 2023-01-02 → 2026-09-30 (HistData = Dukascopy BID M1 for FX/metals/indices; Binance spot M1 for crypto).
 
 ## Split
 * TRAIN: fills before 2025-07-01 00:00 UTC (~2.5 years). TEST: fills 2025-07-01 → 2026-09-30 (~15 months).
@@ -46,3 +46,14 @@ Total ranked configs K = 148 (+ any "first signal of the day" volume variant, co
 * ROBUST only if: TEST mean net R > 0 with 95% CI lower bound > 0, still > 0 at 1.5x costs, and >= 3 of 5 TEST quarters > 0.
 * PROMISING / near-miss: TEST mean > 0 but CI includes 0.
 * Multiple testing: with K≈148 configs, a Bonferroni two-sided 5% bar needs |t| > ~3.4 on TRAIN; reported.
+
+## Clarifications / deviations (logged after the runs, 2026-10-06 ~11:25 CEST)
+1. Volume rule: base configs on 7-8-symbol baskets trade 2.5-7/weekday, so most were ineligible (> 3/wd). Following
+   rule 3, every config with > 2 trades/weekday was ALSO evaluated as its "first fill of the day (portfolio-wide)"
+   variant (`|fod`). These variants were added to the pool before selection -> K = 248 configs (148 base + 100 fod).
+   Bonferroni bar becomes |t| > 3.72.
+2. No minimum-risk floor was applied (considered after seeing B_SWEEP market-entry outliers, NOT applied, to stay
+   with the pre-registered rules). Consequence: B_SWEEP market entries have a fat left tail from tiny stops.
+3. Exploratory, NOT pre-registered: X1 US-index intraday momentum (scripts/strategy_research/exploratory.py),
+   run after the grid failed. Reported separately, cannot be used as evidence.
+4. Simulator sanity check added: random entries (random_baseline.py).
