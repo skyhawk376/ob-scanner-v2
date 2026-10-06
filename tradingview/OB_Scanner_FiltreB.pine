@@ -1,0 +1,458 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0
+// =====================================================================================
+// OB Scanner — Filtre B (TradingView)
+// Recalcule sur le graphique les Order Blocks du scanner ob-scanner-v2 (mêmes règles
+// que backend/app/engine/detect.py + core/lifecycle.py, parité vérifiée par
+// tradingview/pine_reference.py + parity_check.py).
+//
+// INSTALLATION : TradingView → onglet « Pine Editor » (bas de l'écran) → « Ouvrir » →
+// « Nouvel indicateur » → tout effacer → coller ce fichier → « Enregistrer » →
+// « Ajouter au graphique ». Alertes : clic droit sur le graphique → « Ajouter une
+// alerte » → Condition : « OB Filtre B » → « Toute fonction alert() » (message complet
+// entrée/SL/TP) ou « Toucher OB » (alertcondition).
+//
+// RÈGLES (scanner) : pivots fractals stricts (N=3 ; D/W N=2) ; BOS = clôture au-delà du
+// dernier pivot ; OB = dernière bougie opposée à/avant l'extrême de la jambe ; fenêtre
+// 500 barres (D 400, W 260). Étoiles : ★1 FVG (obligatoire) ★2 tendance HH/HL-LH/LL
+// ★3 zone entière sous/sur le 0.5 du swing ★4 pas de liquidité (pivot non pris / égaux)
+// dans 1 ATR derrière l'OB ★5 session Londres 08:00-11:30 / NY 14:30-17:30 (Paris) sur
+// OB, OB+1 ou extrême ; H4/D/W : ★5 évaluée au 1er toucher. Zone vierge = aucune barre
+// après OB+2 ne la touche. Entrée = milieu (si hauteur > 1 ATR, sinon open de l'OB),
+// SL = bord distal ± 0.05 ATR, TP = +2R. Cycle : active → touchée → réaction (+2R) /
+// échec (SL) ; expirée si > 200 barres (H4 150, D 120, W 52) ou distance > 8 ATR.
+// Seules les barres clôturées sont utilisées (pas de repaint). Les pivots devant être
+// confirmés, une zone peut apparaître 1-2 barres après le scanner.
+// Flux : le scanner utilise Yahoo (or = GC=F, argent = SI=F, forex = EURUSD=X) et
+// Binance (crypto). Pour des niveaux identiques : COMEX:GC1!, COMEX:SI1!, BINANCE:BTCUSDT.
+// =====================================================================================
+//@version=6
+indicator("OB Scanner — Filtre B", shorttitle = "OB Filtre B", overlay = true, max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500, max_bars_back = 600)
+
+// ───────────────────────────── Entrées ─────────────────────────────
+grpF = "Filtre"
+minStars   = input.int(4, "Étoiles minimum", minval = 1, maxval = 5, group = grpF)
+showActive = input.bool(true, "Zones vierges actives", group = grpF)
+showHist   = input.bool(false, "Zones touchées / historiques (réaction, échec, expirée)", group = grpF)
+maxZones   = input.int(30, "Nombre max de zones affichées", minval = 1, maxval = 150, group = grpF)
+grpL = "Niveaux"
+showMid  = input.bool(true, "Ligne d'entrée (milieu, pointillés)", group = grpL)
+showSLTP = input.bool(true, "Lignes SL et TP (+2R)", group = grpL)
+showLbl  = input.bool(true, "Étiquettes de prix (zones actives)", group = grpL)
+grpT = "Timeframes"
+showChart = input.bool(true, "OB du timeframe du graphique", group = grpT)
+htfOn     = input.bool(false, "Ajouter les OB d'un timeframe supérieur", group = grpT)
+htfIn     = input.timeframe("240", "Timeframe supérieur", group = grpT)
+grpC = "Couleurs"
+bullCol  = input.color(#26a69a, "Haussier", group = grpC)
+bearCol  = input.color(#ef5350, "Baissier", group = grpC)
+histCol  = input.color(#787b86, "Historique", group = grpC)
+txtCol   = input.color(#d1d4dc, "Texte", group = grpC)
+fillTr   = input.int(82, "Transparence des zones", minval = 0, maxval = 100, group = grpC)
+alertsOn = input.bool(true, "Alerte au 1er toucher d'une zone vierge ≥ min ★", group = "Alertes")
+
+// ───────────────────────────── Constantes du scanner ─────────────────────────────
+float SL_BUF    = 0.05    // SL au-delà du bord distal (ATR)
+float MID_ATR   = 1.0     // entrée = milieu si hauteur > 1 ATR, sinon open de l'OB
+float LIQ_BAND  = 1.0     // ★4 : bande de 1 ATR derrière l'OB
+float LIQ_EQ    = 0.1     // ★4 : tolérance max(0.1 ATR, 0.05 % du prix)
+float LIQ_PCT   = 0.0005
+float MAX_DIST  = 8.0     // expirée si |milieu - clôture| > 8 ATR
+float RR        = 2.0     // TP = +2R
+
+// ───────────────────────────── Types / helpers ─────────────────────────────
+type Zone
+    int   dir
+    int   ob
+    int   bos
+    int   obTime
+    float top
+    float bot
+    float atr
+    bool  s1
+    bool  s2
+    bool  s4
+    bool  s5
+    bool  pend
+    float swFix
+    float swRun
+    float hBos
+    float entry
+    float sl
+    float tp
+    int   status = 0      // 0 active, 1 touchée, 2 réaction, 3 échec, 4 expirée
+    int   touchTime = 0
+    int   endTime = 0
+    int   s3f = -1        // ★3 figée au toucher (-1 = non figée)
+    bool  s5t = false     // ★5 au toucher (H4/D/W)
+    int   s4u = -1        // ★4 en échec tant que ws + N <= s4u
+
+method s3(Zone z) =>
+    bool r = false
+    if z.s3f >= 0
+        r := z.s3f == 1
+    else if z.dir == 1
+        float hi = z.swRun >= z.swFix ? z.swRun : z.hBos
+        r := z.top <= z.swFix + 0.5 * (hi - z.swFix)
+    else
+        float lo = z.swRun <= z.swFix ? z.swRun : z.hBos
+        r := z.bot >= lo + 0.5 * (z.swFix - lo)
+    r
+
+// score tant que la zone était active (= ce que le scanner listait)
+method scorePre(Zone z) =>
+    (z.s1 ? 1 : 0) + (z.s2 ? 1 : 0) + (z.s3() ? 1 : 0) + (z.s4 ? 1 : 0) + (z.s5 and not z.pend ? 1 : 0)
+
+method score(Zone z) =>
+    z.scorePre() + (z.pend and z.s5t ? 1 : 0)
+
+f_inSess(int tt) =>
+    int m = hour(tt, "Europe/Paris") * 60 + minute(tt, "Europe/Paris")
+    (m >= 480 and m < 690) or (m >= 870 and m < 1050)
+
+// paramètres du scanner par timeframe : [pivot N, lookback, expiration, ★5 au toucher]
+f_params(string tf) =>
+    int s = timeframe.in_seconds(tf)
+    int n = s >= 86400 ? 2 : 3
+    int lb = s >= 604800 ? 260 : s >= 86400 ? 400 : 500
+    int ex = s >= 604800 ? 52 : s >= 86400 ? 120 : s >= 14400 ? 150 : 200
+    [n, lb, ex, s >= 14400]
+
+f_tfName(string tf) =>
+    int s = timeframe.in_seconds(tf)
+    s == 300 ? "M5" : s == 900 ? "M15" : s == 1800 ? "M30" : s == 3600 ? "H1" : s == 14400 ? "H4" : s == 86400 ? "D1" : s == 604800 ? "W1" : tf
+
+f_stars(int n) =>
+    string s = ""
+    for i = 1 to 5
+        s += i <= n ? "★" : "☆"
+    s
+
+// Une barre du cycle de vie (ordre de lifecycle.simulate_lifecycle, entrée = milieu).
+// Avant OB+3 : seul l'extrême du swing (★3) avance (le scanner l'inclut depuis le BOS).
+f_life(Zone z, int x, float hx, float lx, float cx, int tx, int EXP) =>
+    if x < z.ob + 3
+        if z.status == 0 and x > z.bos
+            z.swRun := z.dir == 1 ? math.max(z.swRun, hx) : math.min(z.swRun, lx)
+    else
+        if z.status == 0
+            if x - z.ob > EXP
+                z.status := 4
+                z.endTime := tx
+            else if z.atr > 0 and math.abs((z.top + z.bot) / 2 - cx) / z.atr > MAX_DIST
+                z.status := 4
+                z.endTime := tx
+            else if lx <= z.top and hx >= z.bot
+                z.s3f := z.s3() ? 1 : 0
+                z.status := 1
+                z.touchTime := tx
+                z.endTime := tx
+                z.s5t := f_inSess(tx)
+            else if x > z.bos
+                z.swRun := z.dir == 1 ? math.max(z.swRun, hx) : math.min(z.swRun, lx)
+        if z.status == 1
+            z.endTime := tx
+            if z.dir == 1
+                if lx <= z.sl
+                    z.status := 3
+                else if hx >= z.tp
+                    z.status := 2
+            else
+                if hx >= z.sl
+                    z.status := 3
+                else if lx <= z.tp
+                    z.status := 2
+    z.status
+
+// Dédoublonnage (même OB, même sens, zone active) : meilleur score, égalité → BOS récent
+f_merge(array<Zone> arr, Zone z) =>
+    int prev = -1
+    if arr.size() > 0
+        for q = 0 to arr.size() - 1
+            Zone y = arr.get(q)
+            if y.dir == z.dir and y.ob == z.ob and y.status == 0
+                prev := q
+                break
+    if prev >= 0
+        if z.score() >= arr.get(prev).score()
+            arr.set(prev, z)
+    else
+        arr.push(z)
+    prev
+
+// ───────────────────────────── Moteur (barres clôturées) ─────────────────────────────
+// Appelé avec open[1]/high[1]/... : à chaque barre, traite la barre précédente (clôturée).
+// BOS définitif sur j = b-(N-1) (pivots d'indice < j tous confirmés) ; sur la dernière
+// barre, BOS des N-1 dernières barres évalués comme le scanner (provisoires).
+// Retourne toutes les zones (actives + historiques) sur la dernière barre, sinon na.
+f_engine(float o, float h, float l, float c, int t, int N, int L, int EXP, bool PEND, bool enabled) =>
+    var int b = -1
+    var array<int>   phI = array.new<int>()
+    var array<float> phP = array.new<float>()
+    var array<int>   plI = array.new<int>()
+    var array<float> plP = array.new<float>()
+    var float lastBull = na
+    var float lastBear = na
+    var array<Zone> live = array.new<Zone>()
+    var array<Zone> done = array.new<Zone>()
+    var array<Zone> prov = array.new<Zone>()
+    float tr = na(c[1]) ? h - l : math.max(h - l, math.max(math.abs(h - c[1]), math.abs(l - c[1])))
+    float atr = ta.rma(tr, 14)
+    if enabled and not na(o)
+        b += 1
+        int ws = math.max(0, b - L + 1)
+        // 1. pivot fractal strict confirmé en i = b - N
+        if b >= 2 * N
+            bool isH = true
+            bool isL = true
+            for k = 1 to N
+                if not (h[N] > h[N - k] and h[N] > h[N + k])
+                    isH := false
+                if not (l[N] < l[N - k] and l[N] < l[N + k])
+                    isL := false
+            if isH
+                phI.push(b - N)
+                phP.push(h[N])
+            if isL
+                plI.push(b - N)
+                plP.push(l[N])
+        while phI.size() > 0 and phI.first() < ws + N
+            phI.shift()
+            phP.shift()
+        while plI.size() > 0 and plI.first() < ws + N
+            plI.shift()
+            plP.shift()
+        // 2. cycle de vie des zones existantes
+        if live.size() > 0
+            for i = live.size() - 1 to 0
+                Zone z = live.get(i)
+                int st = f_life(z, b, h, l, c, t, EXP)
+                // ★4 redevient vraie quand les pivots bloquants sortent de la fenêtre du scanner
+                if st == 0 and not z.s4 and z.s4u < ws + N
+                    z.s4 := true
+                if st >= 2
+                    live.remove(i)
+                    done.push(z)
+                    if done.size() > 200
+                        done.shift()
+        // 3. BOS (bull puis bear) sur jj
+        prov.clear()
+        float pBull = lastBull
+        float pBear = lastBear
+        int jEnd = barstate.islast ? b : b - N + 1
+        for jj = b - N + 1 to jEnd
+            bool defin = jj == b - N + 1
+            int dj = b - jj
+            float atrJ = atr[dj]
+            if jj >= ws + 2 * N + 2 and atrJ > 0
+                for side = 0 to 1
+                    bool bull = side == 0
+                    int np = bull ? phI.size() : plI.size()
+                    if np > 0
+                        int pi = bull ? phI.last() : plI.last()
+                        float pp = bull ? phP.last() : plP.last()
+                        float lvl = bull ? pBull : pBear
+                        bool brk = bull ? c[dj] > pp : c[dj] < pp
+                        if brk and (na(lvl) or pp != lvl)
+                            // extrême de la jambe (1re occurrence) entre le pivot et le BOS
+                            int k = pi
+                            for x = pi to jj
+                                if bull ? l[b - x] < l[b - k] : h[b - x] > h[b - k]
+                                    k := x
+                            // OB = dernière bougie opposée à/avant l'extrême
+                            int ob = -1
+                            for x = k to ws
+                                if bull ? c[b - x] < o[b - x] : c[b - x] > o[b - x]
+                                    ob := x
+                                    break
+                            if ob >= 0 and ob < jj and ob + 2 <= b
+                                if bull
+                                    pBull := pp
+                                else
+                                    pBear := pp
+                                float top = h[b - ob]
+                                float bot = l[b - ob]
+                                bool s1 = bull ? h[b - ob] < l[b - ob - 2] : l[b - ob] > h[b - ob - 2]
+                                int trd = 0
+                                if phP.size() >= 2 and plP.size() >= 2
+                                    float h1 = phP.get(phP.size() - 2)
+                                    float h2 = phP.last()
+                                    float l1 = plP.get(plP.size() - 2)
+                                    float l2 = plP.last()
+                                    trd := h2 > h1 and l2 > l1 ? 1 : h2 < h1 and l2 < l1 ? -1 : 0
+                                float hBos = bull ? h[dj] : l[dj]
+                                bool s5 = PEND ? false : f_inSess(t[b - ob]) or f_inSess(t[b - ob - 1]) or f_inSess(t[b - k])
+                                float entry = top - bot > MID_ATR * atrJ ? (top + bot) / 2 : o[b - ob]
+                                float sl = bull ? bot - SL_BUF * atrJ : top + SL_BUF * atrJ
+                                float risk = bull ? entry - sl : sl - entry
+                                float tp = risk > 0 ? (bull ? entry + RR * risk : entry - RR * risk) : entry
+                                Zone z = Zone.new(bull ? 1 : -1, ob, jj, t[b - ob], top, bot, atrJ, s1, bull ? trd == 1 : trd == -1, false, s5, PEND, bull ? l[b - k] : h[b - k], hBos, hBos, entry, sl, tp)
+                                // rejoue le cycle de vie jusqu'à b : touchée/expirée avant ou au BOS → jamais
+                                // listée par le scanner ; après le BOS → listée puis touchée (historique)
+                                bool dead = false
+                                int x0 = math.min(ob + 3, jj + 1)
+                                if x0 <= b
+                                    for x = x0 to b
+                                        if f_life(z, x, h[b - x], l[b - x], c[b - x], t[b - x], EXP) != 0 and x <= jj
+                                            dead := true
+                                            break
+                                if not dead and s1
+                                    // ★4 : aucun pivot non pris / pas de pivots égaux dans 1 ATR derrière l'OB.
+                                    // s4u = indice jusqu'auquel l'échec tient (fenêtre glissante du scanner)
+                                    float tol = math.max(LIQ_EQ * atrJ, LIQ_PCT * math.abs((top + bot) / 2))
+                                    int s4u = -1
+                                    array<int>   eqI = array.new<int>()
+                                    array<float> eqP = array.new<float>()
+                                    int nq = bull ? plI.size() : phI.size()
+                                    if nq > 0
+                                        for q = 0 to nq - 1
+                                            int i2 = bull ? plI.get(q) : phI.get(q)
+                                            float p2 = bull ? plP.get(q) : phP.get(q)
+                                            if i2 >= ob
+                                                break
+                                            bool inBand = bull ? p2 >= bot - LIQ_BAND * atrJ and p2 <= bot : p2 >= top and p2 <= top + LIQ_BAND * atrJ
+                                            if inBand
+                                                float ext = bull ? 1e100 : -1e100
+                                                if i2 + 1 <= ob - 1
+                                                    for x = i2 + 1 to ob - 1
+                                                        ext := bull ? math.min(ext, l[b - x]) : math.max(ext, h[b - x])
+                                                if bull ? not (ext <= p2 + tol) : not (ext >= p2 - tol)
+                                                    s4u := i2
+                                                else if bull ? not (ext < p2 - tol) : not (ext > p2 + tol)
+                                                    eqI.push(i2)
+                                                    eqP.push(p2)
+                                    if eqP.size() >= 2
+                                        for a = 0 to eqP.size() - 2
+                                            for a2 = a + 1 to eqP.size() - 1
+                                                if math.abs(eqP.get(a2) - eqP.get(a)) <= tol
+                                                    s4u := math.max(s4u, eqI.get(a))
+                                    z.s4u := s4u
+                                    z.s4 := s4u < 0
+                                    f_merge(defin ? live : prov, z)
+            if defin
+                lastBull := pBull
+                lastBear := pBear
+    array<Zone> res = na
+    if barstate.islast
+        array<Zone> allZ = live.copy()
+        for z in prov
+            f_merge(allZ, z)
+        res := array.new<Zone>()
+        int ws2 = math.max(0, b - L + 1)
+        for z in allZ
+            if z.status != 0 or z.ob >= ws2
+                res.push(z)
+        for z in done
+            res.push(z)
+    res
+
+// ───────────────────────────── Calcul ─────────────────────────────
+[cN, cL, cE, cP] = f_params(timeframe.period)
+[hN, hL, hE, hP] = f_params(htfIn)
+bool htfValid = htfOn and timeframe.in_seconds(htfIn) > timeframe.in_seconds(timeframe.period)
+array<Zone> chartZones = f_engine(open[1], high[1], low[1], close[1], time[1], cN, cL, cE, cP, showChart)
+// TF supérieur : moteur exécuté sur le TF demandé, barres clôturées seulement ([1] + lookahead_on = sans repaint)
+array<Zone> htfZones = request.security(syminfo.tickerid, htfIn, f_engine(open[1], high[1], low[1], close[1], time[1], hN, hL, hE, hP, htfValid), lookahead = barmerge.lookahead_on)
+
+// ───────────────────────────── Affichage + alertes (dernière barre) ─────────────────────────────
+var array<box>   gBox = array.new<box>()
+var array<line>  gLin = array.new<line>()
+var array<label> gLab = array.new<label>()
+varip string alerted = ""
+bool  touchNow = false
+float alE = na
+float alS = na
+float alT = na
+
+f_status(int s) =>
+    s == 1 ? "touchée" : s == 2 ? "réaction +2R" : s == 3 ? "échec SL" : "expirée"
+
+f_keep(Zone z) =>
+    z.status == 0 ? showActive and z.score() >= minStars : showHist and z.scorePre() >= minStars
+
+if barstate.islast
+    for bx in gBox
+        bx.delete()
+    for ln in gLin
+        ln.delete()
+    for lb in gLab
+        lb.delete()
+    gBox.clear()
+    gLin.clear()
+    gLab.clear()
+    array<Zone>   cz = array.new<Zone>()
+    array<string> ctf = array.new<string>()
+    array<float>  ckey = array.new<float>()
+    string tfC = f_tfName(timeframe.period)
+    string tfH = f_tfName(htfIn)
+    array<Zone>   az = array.new<Zone>()      // candidates aux alertes (actives ≥ min ★)
+    array<string> atf = array.new<string>()
+    if showChart and not na(chartZones)
+        for z in chartZones
+            if f_keep(z)
+                cz.push(z)
+                ctf.push(tfC)
+                ckey.push(z.obTime)
+            if z.status == 0 and z.score() >= minStars
+                az.push(z)
+                atf.push(tfC)
+    if htfValid and not na(htfZones)
+        for z in htfZones
+            if f_keep(z)
+                cz.push(z)
+                ctf.push(tfH)
+                ckey.push(z.obTime)
+            if z.status == 0 and z.score() >= minStars
+                az.push(z)
+                atf.push(tfH)
+    int nAct = 0
+    if cz.size() > 0
+        array<int> ord = ckey.sort_indices(order.descending)
+        int nDraw = math.min(maxZones, cz.size())
+        for r = 0 to nDraw - 1
+            int q = ord.get(r)
+            Zone z = cz.get(q)
+            bool act = z.status == 0
+            color base = z.dir == 1 ? bullCol : bearCol
+            color col = act ? base : histCol
+            int right = act ? time : z.status == 4 ? z.endTime : z.touchTime
+            string txt = f_stars(z.score()) + " " + ctf.get(q) + (act ? "" : " · " + f_status(z.status))
+            gBox.push(box.new(z.obTime, z.top, right, z.bot, xloc = xloc.bar_time, extend = act ? extend.right : extend.none, border_color = color.new(col, act ? 35 : 60), bgcolor = color.new(col, act ? fillTr : math.min(100, fillTr + 8)), text = txt, text_size = size.small, text_color = act ? txtCol : color.new(txtCol, 40), text_halign = text.align_left, text_valign = z.dir == 1 ? text.align_top : text.align_bottom))
+            if showMid
+                gLin.push(line.new(z.obTime, z.entry, right, z.entry, xloc = xloc.bar_time, extend = act ? extend.right : extend.none, color = color.new(col, 20), style = line.style_dashed, width = 1))
+            if showSLTP and z.status <= 1
+                gLin.push(line.new(z.obTime, z.sl, right, z.sl, xloc = xloc.bar_time, extend = act ? extend.right : extend.none, color = color.new(bearCol, 30), style = line.style_dotted, width = 1))
+                gLin.push(line.new(z.obTime, z.tp, right, z.tp, xloc = xloc.bar_time, extend = act ? extend.right : extend.none, color = color.new(bullCol, 30), style = line.style_dotted, width = 1))
+            if act
+                nAct += 1
+                if showLbl
+                    gLab.push(label.new(time, z.entry, ctf.get(q) + " E " + str.tostring(z.entry, format.mintick), xloc = xloc.bar_time, style = label.style_label_left, color = color.new(color.black, 100), textcolor = col, size = size.tiny))
+                    if showSLTP
+                        gLab.push(label.new(time, z.sl, "SL " + str.tostring(z.sl, format.mintick), xloc = xloc.bar_time, style = label.style_label_left, color = color.new(color.black, 100), textcolor = bearCol, size = size.tiny))
+                        gLab.push(label.new(time, z.tp, "TP 2R " + str.tostring(z.tp, format.mintick), xloc = xloc.bar_time, style = label.style_label_left, color = color.new(color.black, 100), textcolor = bullCol, size = size.tiny))
+    // Alerte : 1er toucher (intrabar, temps réel) d'une zone vierge ≥ min ★
+    if alertsOn and barstate.isrealtime and az.size() > 0
+        for q = 0 to az.size() - 1
+            Zone z = az.get(q)
+            if high >= z.bot and low <= z.top
+                string key = atf.get(q) + ":" + str.tostring(z.dir) + ":" + str.tostring(z.obTime) + "|"
+                if not str.contains(alerted, key)
+                    alerted += key
+                    touchNow := true
+                    alE := z.entry
+                    alS := z.sl
+                    alT := z.tp
+                    int sc = z.score() + (z.pend and f_inSess(time) ? 1 : 0)
+                    string msg = "OB " + syminfo.ticker + " " + atf.get(q) + " " + (z.dir == 1 ? "ACHAT" : "VENTE") + " " + f_stars(sc) + " touché — Entrée " + str.tostring(z.entry, format.mintick) + " | SL " + str.tostring(z.sl, format.mintick) + " | TP 2R " + str.tostring(z.tp, format.mintick)
+                    alert(msg, alert.freq_all)
+        if str.length(alerted) > 4000
+            alerted := str.substring(alerted, 2000)
+    var table info = table.new(position.top_right, 1, 1)
+    string head = "OB Filtre B · " + (showChart ? tfC : "") + (htfValid ? (showChart ? " + " : "") + tfH : "") + " · actives ≥" + str.tostring(minStars) + "★ : " + str.tostring(nAct)
+    if htfOn and not htfValid
+        head += "\n⚠ TF supérieur ≤ TF du graphique : ignoré"
+    info.cell(0, 0, head, text_color = txtCol, text_size = size.small, bgcolor = color.new(color.black, 70))
+
+plot(alE, "Alerte Entrée", display = display.data_window, editable = false)
+plot(alS, "Alerte SL", display = display.data_window, editable = false)
+plot(alT, "Alerte TP", display = display.data_window, editable = false)
+alertcondition(touchNow, "Toucher OB (zone vierge ≥ min ★)", 'OB {{ticker}} touché — Entrée {{plot("Alerte Entrée")}} SL {{plot("Alerte SL")}} TP {{plot("Alerte TP")}}')

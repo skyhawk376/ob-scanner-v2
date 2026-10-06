@@ -1,0 +1,40 @@
+// Zones EXACTES du scanner OB (prod) — XAUUSD — export 2026-10-06 19:13 (Paris)
+// Généré par tradingview/export_zones_pine.py depuis https://ob-scanner-v2.fly.dev/zones (statuts : all).
+// Photo figée : relancer le script pour mettre à jour. Niveaux du flux du scanner :
+// à afficher de préférence sur COMEX:GC1!.
+// Installation : Pine Editor → coller → Enregistrer → Ajouter au graphique.
+//@version=6
+indicator("OB Scanner — zones XAUUSD (2026-10-06 19:13)", shorttitle = "OB XAUUSD live", overlay = true, max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
+showSLTP = input.bool(true, "Lignes SL / TP (+2R)")
+bullCol  = input.color(#26a69a, "Haussier")
+bearCol  = input.color(#ef5350, "Baissier")
+histCol  = input.color(#787b86, "Historique")
+
+var array<box>  gBox = array.new<box>()
+var array<line> gLin = array.new<line>()
+
+f_zone(int t0, int t1, float top, float bot, float entry, float sl, float tp, int dir, bool act, string txt) =>
+    color col = act ? (dir == 1 ? bullCol : bearCol) : histCol
+    int right = act ? time : math.max(t1, t0 + 1)
+    ext = act ? extend.right : extend.none
+    gBox.push(box.new(t0, top, right, bot, xloc = xloc.bar_time, extend = ext, border_color = color.new(col, 35), bgcolor = color.new(col, act ? 82 : 90), text = txt, text_size = size.small, text_color = color.new(#d1d4dc, act ? 0 : 40), text_halign = text.align_left, text_valign = text.align_top))
+    gLin.push(line.new(t0, entry, right, entry, xloc = xloc.bar_time, extend = ext, color = color.new(col, 20), style = line.style_dashed))
+    if showSLTP and act
+        gLin.push(line.new(t0, sl, right, sl, xloc = xloc.bar_time, extend = ext, color = color.new(bearCol, 30), style = line.style_dotted))
+        gLin.push(line.new(t0, tp, right, tp, xloc = xloc.bar_time, extend = ext, color = color.new(bullCol, 30), style = line.style_dotted))
+    true
+
+if barstate.islast
+    for bx in gBox
+        bx.delete()
+    for ln in gLin
+        ln.delete()
+    gBox.clear()
+    gLin.clear()
+    f_zone(1789131600000, 1789646400000, 4444.89990234375, 4421.89990234375, 4433.39990234375, 4445.945356542017, 4408.308993947216, -1, false, "★★★★★ H1 · réaction +2R")
+    f_zone(1789635600000, 1790053200000, 4358.5, 4343.89990234375, 4351.2998046875, 4342.753180290575, 4368.39305348135, 1, false, "★★★★★ H1 · réaction +2R")
+    f_zone(1790701200000, 1790787600000, 4181.2001953125, 4174.39990234375, 4177.7998046875, 4173.626297438931, 4186.146819184638, 1, false, "★★★★☆ H1 · réaction +2R")
+    f_zone(1790744400000, 1790758800000, 4214.7998046875, 4197.60009765625, 4206.199951171875, 4196.878154777375, 4224.843543960875, 1, false, "★★★★☆ H1 · réaction +2R")
+    f_zone(1791265500000, 1791288000000, 4149.7001953125, 4143.2998046875, 4148.60009765625, 4142.940207143448, 4159.919878681854, 1, false, "★★★★☆ M15 · expirée")
+    var table info = table.new(position.top_right, 1, 1)
+    info.cell(0, 0, "Scanner OB XAUUSD · 2026-10-06 19:13 · actives : 0", text_color = #d1d4dc, text_size = size.small, bgcolor = color.new(color.black, 70))
