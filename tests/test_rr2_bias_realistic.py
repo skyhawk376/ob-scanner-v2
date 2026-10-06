@@ -165,9 +165,7 @@ def test_touch_message_has_bias_line_and_tp2r(monkeypatch):
     }
     msg = format_zone_message("touchee", z)
     assert "TP(+2R) 120 (RR 2.0)" in msg
-    assert "Tendance H4 🟢 / D1 🟢 → ✅ aligné H4+D1" in msg
-    msg2 = format_zone_message("touchee", {**z, "bias_d1": None, "aligned_h4d1": None})
-    assert "D1 ?" in msg2
+    assert "Tendance" not in msg and "aligné" not in msg
     rmsg = format_zone_message(
         "reaction", {**z, "trade_status": "closed", "trade_r": 2.0, "trade_exit": "tp"}
     )
@@ -190,7 +188,7 @@ def test_notify_without_d1_data_still_sends(tmp_path, monkeypatch):
          "touched_at": "2026-10-06T08:00:00+00:00"}
     r = tg.notify_zone_event("touchee", z, force_dry=True)
     assert r and r.get("ok")
-    assert len(sent) == 1 and "Tendance H4 ? / D1 ?" in sent[0]
+    assert len(sent) == 1 and "Tendance" not in sent[0]
     get_settings.cache_clear()
 
 
@@ -201,7 +199,7 @@ def test_digest_has_realistic_lines():
             "n_unfilled": 4, "aligned": {"n": 5, "wr": 0.8, "avg_r": 1.0},
             "not_aligned": {"n": 5, "wr": 0.4, "avg_r": -0.1}}
     txt = build_digest([], label="test", stats={"realistic": real, "realistic_7d": real})
-    assert "Stats réelles" in txt and "WR 60%" in txt and "aligné H4+D1 : 5" in txt
+    assert "Stats réelles" in txt and "WR 60%" in txt and "aligné" not in txt
 
 
 # --------------------------------------------------------------------- lifecycle + stats

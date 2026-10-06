@@ -81,8 +81,6 @@ def trade_line(zone: dict[str, Any]) -> str | None:
 
 
 def format_zone_message(event: str, zone: dict[str, Any]) -> str:
-    from .trend_bias import bias_line
-
     direction = zone.get("direction", "bull")
     bull = direction == "bull"
     label = "ZONE ACHAT" if bull else "ZONE VENTE"
@@ -126,7 +124,6 @@ def format_zone_message(event: str, zone: dict[str, Any]) -> str:
         f"{label} {zone.get('symbol')} {tf_lbl}",
         f"· {lo:.6g}–{hi:.6g}",
         levels,
-        bias_line(zone),
         f"· session {sess}",
     ]
     if event in ("reaction", "echec"):
@@ -263,14 +260,11 @@ def stats_lines(real: dict[str, Any] | None, *, title: str) -> list[str]:
     if not real:
         return []
     tpd = real.get("trades_per_day")
-    al, nal = real.get("aligned") or {}, real.get("not_aligned") or {}
     return [
         f"📊 {title} (fill mid · TP +{_fmt_r(float(real.get('tp_r') or 2))}R · time stop 1h)",
         f"· {real.get('n_closed', 0)} trades · WR {_pct(real.get('wr'))} · moy {_avg(real.get('avg_r'))}"
         + (f" · {tpd:.2f}/jour ouvré" if tpd is not None else "")
         + f" · {real.get('n_unfilled', 0)} non rempli(s)",
-        f"· ✅ aligné H4+D1 : {al.get('n', 0)} · WR {_pct(al.get('wr'))} · moy {_avg(al.get('avg_r'))}",
-        f"· ⚠️ non aligné : {nal.get('n', 0)} · WR {_pct(nal.get('wr'))} · moy {_avg(nal.get('avg_r'))}",
     ]
 
 
