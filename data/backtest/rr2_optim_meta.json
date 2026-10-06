@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-10-06T10:10:51.117310+02:00",
+  "windows": {
+    "METAUX": [
+      "2026-08-20 09:00:00+00:00",
+      "2026-10-05 18:00:00+00:00",
+      33.125
+    ],
+    "FOREX": [
+      "2026-08-24 14:00:00+00:00",
+      "2026-10-05 18:00:00+00:00",
+      30.119047619047617
+    ],
+    "CRYPTO": [
+      "2026-09-05 19:00:00+00:00",
+      "2026-10-05 08:00:00+00:00",
+      21.101190476190478
+    ]
+  },
+  "split": {
+    "METAUX": "2026-09-12 13:30:00+00:00",
+    "FOREX": "2026-09-14 16:00:00+00:00",
+    "CRYPTO": "2026-09-20 13:30:00+00:00"
+  },
+  "eligible_zones": 92,
+  "touch_le_det_dropped": 0,
+  "fill_cap_h1": 24,
+  "cost_r": 0.05,
+  "cost_atr": 0.02,
+  "repro_legacy": {
+    "1R": {
+      "signals": 142,
+      "closed": 92,
+      "wins": 77,
+      "losses": 15,
+      "wr": 0.8369565217391305,
+      "avg_r": 0.6739130434782609,
+      "sum_r": 62.0,
+      "hold_capped_excluded": 5,
+      "tp1_liquidity_below_target_credited_full": 0,
+      "touch_span_days_old": 124.66666666666667,
+      "tpw_old_convention": 1.0331550802139038,
+      "closed_in_window": 87,
+      "tpw_corrected": 3.2832064353552406
+    },
+    "2R": {
+      "signals": 142,
+      "closed": 64,
+      "wins": 49,
+      "losses": 15,
+      "wr": 0.765625,
+      "avg_r": 1.296875,
+      "sum_r": 83.0,
+      "hold_capped_excluded": 33,
+      "tp1_liquidity_below_target_credited_full": 1,
+      "touch_span_days_old": 124.66666666666667,
+      "tpw_old_convention": 0.7187165775401069,
+      "closed_in_window": 61,
+      "tpw_corrected": 2.2587347129440984
+    }
+  },
+  "n_configs": 1152,
+  "models": [
+    "legacy",
+    "cons",
+    "m15"
+  ]
+}
