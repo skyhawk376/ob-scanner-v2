@@ -57,3 +57,37 @@ Total ranked configs K = 148 (+ any "first signal of the day" volume variant, co
 3. Exploratory, NOT pre-registered: X1 US-index intraday momentum (scripts/strategy_research/exploratory.py),
    run after the grid failed. Reported separately, cannot be used as evidence.
 4. Simulator sanity check added: random entries (random_baseline.py).
+
+---------------------------------------------------------------------------------------------------------------------
+# Pre-registration #2 — OB 5★ on low timeframes (M5 / M15 / M30)
+Appended 2026-10-06 ~14:50 CEST, BEFORE any low-TF backtest result (only detection was running).
+Same data (M1 2023-01-02 → 2026-09-30), same simulator/costs/execution (`common.py`: 3-min alert delay, limit fills
+only on trade-through by half-spread, SL-first in the same minute, TP on the fill bar only on a close beyond),
+same split (TRAIN fills < 2025-07-01, TEST after). Universe: the same 17 symbols (FOREX 9, METALS 2, INDICES 3, CRYPTO 3).
+
+## Detection
+Repo engine `detect_zones` unchanged; params per TF: pivot_n=3, lookback=300 bars, other params default
+(virgin OB + FVG required, SL buffer 0.05 ATR(TF)). Causal walk-forward at every bar (`ob_lowtf_detect.py`);
+first appearance of each zone at score >= 4 and >= 5 recorded; zone known at the open of the next bar.
+
+## Orders
+Limit at entry, live from detection + 3 min, expires after 24 bars of the TF (M5 2h, M15 6h, M30 12h).
+
+## Grid (per TF)
+* entry: {mid = engine entry (zone mid if height > 1 ATR(TF), else OB open), prox = proximal edge}
+* SL: {eng = distal + 0.05 ATR(TF); buf = distal + 0.25 ATR(TF); floorH1 = engine stop but at least 0.5×ATR(H1) from entry;
+  floorCost = engine stop but at least 5× round-trip cost from entry (cost/risk <= 0.2)}
+* TP: {1R, 2R, 3R}
+* time stop after fill: M5 {30, 60} min; M15 {60, 120} min; M30 {60, 120} min
+* stars: {>=4, >=5}
+* trend at detection (closed bars only): {none, H1 EMA50, H4 EMA50, H1 & H4 both aligned}
+* session: {all, LonNY = fill in 08:00-12:00 or 14:30-18:00 Paris}
+=> 2×4×3×2×2×4×2 = 768 configs per TF, 2304 base configs; + "first fill of the day" (portfolio-wide) variant of every
+config with > 2 trades/weekday (counted in K).
+Round-trip cost unit for reporting = spread + commission + one slippage leg; cost/risk = that / planned risk.
+
+## Ranking & verdict (same as #1)
+Eligible on TRAIN: n >= 150 and 0.5 <= trades/weekday <= 3. Score = TRAIN t-stat of mean net R (1× costs).
+Winner per TF = best score; frozen; only then TEST is read (winners + top-5 per TF reported).
+ROBUST only if TEST mean > 0 with 95% CI lower bound > 0, > 0 at 1.5× costs, >= 3/5 TEST quarters > 0.
+Also reported: gross (zero-cost) edge, cost/risk, 5-min delay, per group, per quarter.
