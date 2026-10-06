@@ -1,0 +1,33 @@
+<stdin>:27: UserWarning: obj.round has no effect with datetime, timedelta, or period dtypes. Use obj.dt.round(...) instead.
+== DIAGNOSTIC (not pre-registered): share of HTF zones whose proximal edge is touched within N days of detection (2020-2026 detections)
+  H4 main zones= 132  4d:40% 28d:75% 84d:82% 365d:91%
+  H4 x    zones= 279  4d:52% 28d:78% 84d:85% 365d:91%
+  D1 main zones=  30  4d:7% 28d:57% 84d:73% 365d:83%
+  D1 x    zones=  80  4d:39% 28d:70% 84d:80% 365d:88%
+  W main zones=   5  4d:0% 28d:20% 84d:40% 365d:60%
+  W x    zones=  14  4d:7% 28d:36% 84d:43% 365d:57%
+== DESCRIPTIVE pooled 2020-01 -> 2026-09 (pre+train+test), MIX family, 3*, SL eng, no trend filter
+  MIX-H4 market TP1R hold60m n=26 net=-0.183 [-0.440,+0.075] gross=-0.132 WR=42%
+  MIX-H4 market TP1R hold180m n=26 net=-0.319 [-0.622,-0.017] gross=-0.272 WR=31%
+  MIX-H4 market TP2R hold60m n=26 net=-0.163 [-0.446,+0.119] gross=-0.105 WR=42%
+  MIX-H4 market TP2R hold180m n=26 net=-0.259 [-0.617,+0.098] gross=-0.210 WR=31%
+  MIX-H4 mid    TP1R hold60m n=17 net=-0.161 [-0.538,+0.215] gross=-0.118 WR=47%
+  MIX-H4 mid    TP1R hold180m n=17 net=-0.267 [-0.687,+0.153] gross=-0.194 WR=35%
+  MIX-H4 mid    TP2R hold60m n=17 net=-0.091 [-0.531,+0.349] gross=-0.046 WR=47%
+  MIX-H4 mid    TP2R hold180m n=17 net=-0.275 [-0.779,+0.230] gross=-0.200 WR=29%
+  MIX-D1 market TP1R hold60m n=7 net=-0.110 [-0.290,+0.069] gross=-0.087 WR=29%
+  MIX-D1 market TP1R hold180m n=7 net=-0.138 [-0.344,+0.068] gross=-0.115 WR=14%
+  MIX-D1 market TP2R hold60m n=7 net=-0.110 [-0.290,+0.069] gross=-0.087 WR=29%
+  MIX-D1 market TP2R hold180m n=7 net=-0.138 [-0.344,+0.068] gross=-0.115 WR=14%
+  MIX-D1 mid    TP1R hold60m n=5 net=-0.109 [-0.243,+0.025] gross=-0.092 WR=20%
+  MIX-D1 mid    TP1R hold180m n=5 net=-0.128 [-0.371,+0.115] gross=-0.111 WR=40%
+  MIX-D1 mid    TP2R hold60m n=5 net=-0.109 [-0.243,+0.025] gross=-0.092 WR=20%
+  MIX-D1 mid    TP2R hold180m n=5 net=-0.128 [-0.371,+0.115] gross=-0.111 WR=40%
+== W (exploratory 'any' virgin weekly OB), every fill, prox, SL eng, TP2R, hold 28d
+                     t_fill  side  entry_px        sl     risk  why  hold_min  nights  r_net period
+0 2020-11-15 23:00:00+00:00     1  1888.263  1856.398   54.950    2    4912.0       5 -0.617    pre
+1 2022-11-11 21:41:00+00:00    -1  1770.565  1810.520   39.955    3   40320.0      28 -0.785    pre
+2 2023-12-11 07:56:00+00:00     1  1992.955  1930.173   62.782    3   40320.0      28  0.446  train
+3 2024-12-12 01:01:00+00:00    -1  2724.790  2793.937   69.392    1    9894.0       4  1.987  train
+4 2026-02-02 05:48:00+00:00     1  4549.298  4265.508  283.790    1   13333.0       9  1.971   test
+5 2024-11-06 13:30:00+00:00     1  2672.908  2620.906   52.002    2    7274.0       5 -1.055  train

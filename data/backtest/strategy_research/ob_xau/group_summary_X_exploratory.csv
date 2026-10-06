@@ -1,0 +1,4 @@
+group,configs,eligible,train_net_pos,test_net_pos,eligible_train_net_pos,eligible_test_net_pos,train_gross_pos,test_gross_pos,median_train_net,median_test_net,best_train_t
+X-H4,720,60,106,33,0,0,155,31,-0.11674745950553135,-0.41863610682489655,-0.4510171262612116
+X-D1,720,60,18,296,0,44,41,302,-0.0530312680165422,0.1539624829274349,-0.0622949650930324
+X-W,720,0,234,162,0,0,312,162,,,

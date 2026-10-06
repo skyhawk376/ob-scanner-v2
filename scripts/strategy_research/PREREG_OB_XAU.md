@@ -121,4 +121,13 @@ Every config with more than 2.0 TRAIN trades per weekday also enters as a "first
 No deviations are allowed without being logged below with a timestamp.
 
 ## Deviations / clarifications (logged after the runs)
-(none yet)
+1. (2026-10-06 ~15:17 CEST, after the main grid, select and baseline had run) No config clears the prereg #3 rule on any TF.
+   * The engine's virgin + FVG + star rules leave almost no tradable HTF zones on XAU, so H4, D1, W and MIX have **no config with
+     TRAIN n ≥ 20** and get no verdict.
+   * No fod variant was created, because no config traded more than 2 per weekday on TRAIN. Final K = 6,480 and the Bonferroni bar is |t| > 4.47.
+2. **EXPLORATORY, NOT pre-registered (family X, HTF only):** added to get usable HTF samples (Kasper-style HTF zones). It cannot count as confirmatory evidence.
+   * Same engine, called with `min_score=0, require_fvg=False, require_fresh=True` on H4 / D1 / W, i.e. any virgin engine OB.
+   * Variants: `fvg` (★1 required, any other stars) / `any` (no FVG required).
+   * Orders are live from the first appearance + 3 min, with the same limit validity per TF and no ★5-at-touch logic.
+   * Same entry / SL / TP / holds / trend / session grid as family Z: 2 × 3 TF × 2 × 2 × 3 × 5 × 3 × 2 = 2,160 configs.
+   * Same TRAIN ranking (n ≥ 40, ≤ 3/weekday, max t), same TEST verdict rule. It is reported separately.
