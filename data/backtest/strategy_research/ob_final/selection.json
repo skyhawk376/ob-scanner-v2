@@ -1,0 +1,56 @@
+{
+ "A": {
+  "winner": "A|D1|BOS|any|tr50|prox|LIQ|5d",
+  "flag": "n>=100",
+  "K": 192,
+  "n_train_pos": 27,
+  "n_test_pos": 16,
+  "n_eligible": 192,
+  "best_train_t": 0.7864247223483849
+ },
+ "B": {
+  "winner": "B|D1|s3|none|ltf_M5_zone|5R|2d",
+  "flag": "n>=100",
+  "K": 96,
+  "n_train_pos": 0,
+  "n_test_pos": 13,
+  "n_eligible": 94,
+  "best_train_t": -0.6360970908925514
+ },
+ "C": {
+  "winner": "C|H4|FVG|s3|tr50|prox|2R|2d",
+  "flag": "n>=100",
+  "K": 192,
+  "n_train_pos": 38,
+  "n_test_pos": 90,
+  "n_eligible": 192,
+  "best_train_t": 0.7350940869409147
+ },
+ "EA": {
+  "winner": "EA|D1|BOS|any|tr50|prox|LIQ|3h",
+  "flag": "n>=100",
+  "K": 96,
+  "n_train_pos": 24,
+  "n_test_pos": 25,
+  "n_eligible": 96,
+  "best_train_t": 1.535826784457819
+ },
+ "EB": {
+  "winner": "EB|D1|s3|none|ltf_M5_zone|LIQ|3h",
+  "flag": "n>=100",
+  "K": 96,
+  "n_train_pos": 0,
+  "n_test_pos": 0,
+  "n_eligible": 94,
+  "best_train_t": -1.4830793434192697
+ },
+ "EC": {
+  "winner": "EC|H4|FVG|s3|tr20|prox|2R|3h",
+  "flag": "n>=100",
+  "K": 96,
+  "n_train_pos": 26,
+  "n_test_pos": 58,
+  "n_eligible": 96,
+  "best_train_t": 1.407963054191617
+ }
+}

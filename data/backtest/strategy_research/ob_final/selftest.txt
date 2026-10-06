@@ -1,0 +1,3 @@
+EURUSD fills 2443 same_fill True same_exit True same_why True max|dR| 0.0
+XAUUSD fills 2716 same_fill True same_exit True same_why True max|dR| 0.0
+BTC fills 2871 same_fill True same_exit True same_why True max|dR| 0.0

@@ -1,0 +1,14 @@
+A A|D1|BOS|any|tr50|prox|LIQ|10d FAIL TEST 330 -0.14 -0.2799 -0.0 1.5x -0.1597 gross -0.0928 yrs+ 1 / 5 rand 0.0341 trendbase -0.0248
+B B|D1|s3|none|ltf_M15_ltf|LIQ|2d FAIL TEST 169 -0.1374 -0.406 0.1313 1.5x -0.1768 gross -0.0113 yrs+ 0 / 5 rand -0.102 trendbase None
+C C|H4|FVG|s3|tr50|mid|3R|1d WEAK TEST 99 0.2612 -0.0804 0.6028 1.5x 0.2442 gross 0.3633 yrs+ 4 / 5 rand -0.0237 trendbase -0.0973
+EA EA|D1|BOS|any|tr50|prox|LIQ|3h WEAK TEST 330 0.0098 -0.035 0.0545 1.5x 0.0025 gross 0.0327 yrs+ 4 / 5 rand -0.0156 trendbase -0.0319
+EB EB|D1|s3|none|ltf_M5_zone|LIQ|3h FAIL TEST 115 -0.0295 -0.0884 0.0293 1.5x -0.0397 gross -0.0034 yrs+ 3 / 5 rand -0.0404 trendbase None
+EC EC|H4|FVG|s3|tr20|prox|2R|3h WEAK TEST 127 0.0331 -0.1138 0.18 1.5x 0.0178 gross 0.0545 yrs+ 3 / 5 rand -0.0466 trendbase -0.0504
+D A|D1|BOS|any|tr50|prox|LIQ|10d mgmt 0 TRAIN 0.0985 0.8106 TEST 330 -0.14 -0.2799 -0.0
+D A|D1|BOS|any|tr50|prox|LIQ|10d mgmt 1 TRAIN 0.079 0.6825 TEST 330 -0.1141 -0.2438 0.0157
+D A|D1|BOS|any|tr50|prox|LIQ|10d mgmt 2 TRAIN 0.1032 0.9474 TEST 330 -0.1108 -0.2218 0.0002
+D A|D1|BOS|any|tr50|prox|LIQ|10d mgmt 3 TRAIN 0.0774 0.6856 TEST 330 -0.0953 -0.2254 0.0347
+D_C_explor C|H4|FVG|s3|tr50|mid|3R|1d mgmt 0 TRAIN 0.1592 0.7824 TEST 99 0.2612 -0.0804 0.6028
+D_C_explor C|H4|FVG|s3|tr50|mid|3R|1d mgmt 1 TRAIN 0.0903 0.4759 TEST 99 0.134 -0.1402 0.4083
+D_C_explor C|H4|FVG|s3|tr50|mid|3R|1d mgmt 2 TRAIN 0.0354 0.205 TEST 99 0.1684 -0.0448 0.3817
+D_C_explor C|H4|FVG|s3|tr50|mid|3R|1d mgmt 3 TRAIN -0.0332 -0.1884 TEST 99 0.2211 -0.0395 0.4816
