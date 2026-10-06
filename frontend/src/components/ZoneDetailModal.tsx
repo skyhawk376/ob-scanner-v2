@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { Zone } from '../lib/types'
 import { MiniChart } from './MiniChart'
+import { RR_LABEL, TP_LABEL, TP_R } from '../lib/strategy'
 
 function fmt(n: number | null | undefined, digits = 4): string {
   if (n == null || Number.isNaN(n)) return '—'
@@ -30,8 +31,8 @@ export function ZoneDetailModal({
   const tp1r =
     risk != null && risk > 0 && zone.entry != null
       ? buy
-        ? zone.entry + risk
-        : zone.entry - risk
+        ? zone.entry + TP_R * risk
+        : zone.entry - TP_R * risk
       : null
 
   useEffect(() => {
@@ -151,9 +152,9 @@ export function ZoneDetailModal({
                   color="text-blue-300"
                 />
                 <Metric label="SL" value={fmt(zone.sl)} color="text-orange-300" />
-                <Metric label="TP(+1R)" value={fmt(tp1r)} color="text-zinc-200" />
+                <Metric label={TP_LABEL} value={fmt(tp1r)} color="text-zinc-200" />
                 <Metric label="TP2 (+2R)" value={fmt(zone.tp2)} color="text-zinc-200" />
-                <Metric label="RR" value={tp1r != null ? '1.0' : '—'} color="text-zinc-200" />
+                <Metric label="RR" value={tp1r != null ? RR_LABEL : '—'} color="text-zinc-200" />
               </div>
             </section>
 

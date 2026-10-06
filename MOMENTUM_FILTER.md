@@ -4,6 +4,16 @@ Generated: **2026-10-06 10:16 CEST** (Europe/Paris). Branch `feat/always-on-fly`
 
 Scripts: `scripts/momentum_filter_backtest.py` (bias + variants), `scripts/momentum_filter_report.py` (this file). Trade simulation is the **realistic simulator of `scripts/rr2_optim_backtest.py`** (imported unchanged): mid limit must actually fill (≤24 H1 bars after first touch), M15 price path (yfinance FX/metals, Binance crypto; H1-conservative fallback when no M15), every trade closed by TP / SL / **1h time stop**. Same causal zone detection (`rr2_zones.pkl`), same group windows, same IS/OOS split (each group window cut at its midpoint) and the same trades/weekday convention as `RR2_OPTIM.md`, so the baseline reproduces it exactly (88 trades, 55.7% / +0.104R at +1R; 51.1% / +0.142R at +2R).
 
+
+> **⚠ Correction 2026-10-06 (bias look-ahead bug).** `biases_at()` compared `avail.asi8` (µs/ms
+> under pandas 3) with `T.value` (ns), so every trade read the **last bar of the series** (look-ahead)
+> instead of the last bar closed at touch. Fixed (`DatetimeIndex.searchsorted(T)`); corrected outputs in
+> `data/backtest/momentum_fixed/`. Corrected +2R, bias at touch, ema50:
+> **H4+D1: 45 trades, 1.78/weekday, WR 57.8 %, +0.297R** (IS +0.19 / OOS +0.41, rejected 43 → −0.02R, perm p 0.09);
+> **D1: 53 trades, WR 62.3 %, +0.300R** (perm p 0.035); baseline unchanged (88, 51.1 %, +0.142R).
+> Direction of the finding holds, magnitude is smaller than the table below (+0.42R). Live (v15) shows
+> the H4/D1 bias as **information only** (no filter).
+
 ## TL;DR
 
 Realistic simulator, hold 1h, ≥4★, METAUX+FOREX+CRYPTO, entry mid (fill required), SL distal+0.05 ATR. Bias measured at the OB touch time on closed candles only. No costs except the "net" column.

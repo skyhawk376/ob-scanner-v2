@@ -176,7 +176,7 @@ def biases_at(series: dict, cache: dict, T: pd.Timestamp) -> dict:
         idx, avail, h, l, c = series[tf]
         if tf not in cache:
             cache[tf] = bias_arrays(h, l, c)
-        k = int(np.searchsorted(avail.asi8, T.value, side="right")) - 1
+        k = int(avail.searchsorted(T, side="right")) - 1
         ok = k >= 0 and (T - avail[k]) <= STALE[tf]
         for d in DEFS:
             res[f"{d}_{tf}"] = int(cache[tf][d][k]) if ok else None
@@ -424,7 +424,7 @@ def main() -> int:
                     ok = True
                     for tf in tfs:
                         idx, avail, h, l, c = ser[tf]
-                        kk = int(np.searchsorted(avail.asi8, T.value, side="right")) - 1
+                        kk = int(avail.searchsorted(T, side="right")) - 1
                         if kk < span - 1 or (T - avail[kk]) > STALE[tf]:
                             continue  # TF not warm/available → skipped
                         e = _ema(c[: kk + 1], span)[-1]

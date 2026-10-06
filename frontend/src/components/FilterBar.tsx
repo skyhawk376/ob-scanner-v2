@@ -72,7 +72,7 @@ export function FilterBar({
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           className="mr-1 rounded border border-emerald-700/60 bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300"
-          title="Filtre B : ≥4★ · Métaux/Forex/Crypto · entrée mid · TP +1R (RR 1:1) · OB vierges"
+          title="Filtre B : ≥4★ · Métaux/Forex/Crypto · entrée mid · TP +2R (RR 1:2) · tendance H4/D1 affichée (info) · OB vierges"
         >
           Filtre B
         </span>

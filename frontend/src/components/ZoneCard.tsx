@@ -1,6 +1,7 @@
 import type { KeyboardEvent } from 'react'
 import type { Zone } from '../lib/types'
 import { MiniChart } from './MiniChart'
+import { RR_LABEL, TP_LABEL, TP_R } from '../lib/strategy'
 
 function Stars({ z }: { z: Zone }) {
   const flags = [z.star1_fvg, z.star2_trend, z.star3_fib, z.star4_liquidity, z.star5_session]
@@ -30,8 +31,8 @@ export function ZoneCard({ zone, onOpen }: { zone: Zone; onOpen?: (z: Zone) => v
   const tp1r =
     risk != null && risk > 0 && zone.entry != null
       ? buy
-        ? zone.entry + risk
-        : zone.entry - risk
+        ? zone.entry + TP_R * risk
+        : zone.entry - TP_R * risk
       : null
   const clickable = Boolean(onOpen)
 
@@ -100,12 +101,12 @@ export function ZoneCard({ zone, onOpen }: { zone: Zone; onOpen?: (z: Zone) => v
           <div className="font-medium text-orange-300">{fmt(zone.sl)}</div>
         </div>
         <div>
-          <div className="text-zinc-500">TP(+1R)</div>
+          <div className="text-zinc-500">{TP_LABEL}</div>
           <div className="font-medium text-zinc-200">{fmt(tp1r)}</div>
         </div>
         <div>
           <div className="text-zinc-500">RR</div>
-          <div className="font-medium text-zinc-200">{tp1r != null ? '1.0' : '—'}</div>
+          <div className="font-medium text-zinc-200">{tp1r != null ? RR_LABEL : '—'}</div>
         </div>
       </div>
     </article>

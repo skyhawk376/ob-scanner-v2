@@ -50,6 +50,52 @@ export interface Zone {
   mfe_r?: number
   mae_r?: number
   star5_at_touch?: boolean | null
+  /** H4/D1 trend at touch (close vs EMA50, closed bars): 1 up, -1 down, 0 flat, null unknown */
+  bias_h4?: number | null
+  bias_d1?: number | null
+  aligned_h4d1?: boolean | null
+  bias_at?: string | null
+  /** Realistic trade (fill at mid required, TP +2R / SL / time stop 1h) */
+  trade_status?: 'pending' | 'unfilled' | 'open' | 'closed' | string | null
+  trade_r?: number | null
+  trade_exit?: 'tp' | 'sl' | 'time' | string | null
+  trade_fill_at?: string | null
+  trade_exit_at?: string | null
+  trade_model?: string | null
+  trade_tp?: number | null
+}
+
+export interface TradeSummary {
+  n: number
+  wins?: number
+  wr: number | null
+  avg_r: number | null
+  sum_r?: number
+  exits?: Record<string, number>
+  trades_per_day?: number | null
+}
+
+export interface RealisticStats {
+  method: string
+  tp_r: number
+  n_touched: number
+  n_closed: number
+  n_unfilled: number
+  n_pending: number
+  n_open: number
+  n_unknown: number
+  fill_rate: number | null
+  wr: number | null
+  avg_r: number | null
+  sum_r: number
+  exits: Record<string, number>
+  weekdays: number
+  trades_per_day: number | null
+  aligned: TradeSummary
+  not_aligned: TradeSummary
+  n_aligned_unknown: number
+  by_group: Record<string, TradeSummary>
+  models: Record<string, number>
 }
 
 export interface Candle {
@@ -90,6 +136,9 @@ export interface StatsResponse {
   by_score: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>
   by_group: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>
   by_session: Record<string, { n: number; reaction: number; echec: number; reaction_rate: number | null; reaction_rate_touched?: number | null }>
+  realistic?: RealisticStats
+  realistic_7d?: RealisticStats
+  legacy_note?: string
 }
 
 export interface HealthResponse {

@@ -88,11 +88,12 @@ def test_entry_mode_mid_from_env(monkeypatch):
     assert require_entry_fill_for_mode() is False
 
 
-def test_format_zone_message_shows_tp_1r_not_distant_tp1():
-    """Telegram must show +1R target / RR 1.0, not liquidity TP1 with RR 32."""
+def test_format_zone_message_shows_tp_2r_not_distant_tp1(monkeypatch):
+    """Telegram must show +2R target / RR 2.0 (REACTION_R=2.0), not liquidity TP1 with RR 32."""
+    monkeypatch.setenv("REACTION_R", "2.0")
     from app.core.telegram import format_zone_message
 
-    # bull: entry 100, sl 90 → risk 10 → TP(+1R)=110; distant tp1 at 420 → RR 32
+    # bull: entry 100, sl 90 → risk 10 → TP(+2R)=120; distant tp1 at 420 → RR 32
     zone = {
         "id": "XAUUSD|H1|bull|t",
         "symbol": "XAUUSD",
@@ -108,13 +109,14 @@ def test_format_zone_message_shows_tp_1r_not_distant_tp1():
         "entry_mode": "mid",
     }
     msg = format_zone_message("new_zone", zone)
-    assert "TP(+1R) 110" in msg
-    assert "RR 1.0" in msg
+    assert "TP(+2R) 120" in msg
+    assert "RR 2.0" in msg
+    assert "+1R" not in msg and "RR 1.0" not in msg
     assert "420" not in msg
     assert "RR 32" not in msg
     assert "milieu OB" in msg
 
-    # bear: entry 100, sl 110 → risk 10 → TP(+1R)=90
+    # bear: entry 100, sl 110 → risk 10 → TP(+2R)=80
     zone_b = {
         **zone,
         "direction": "bear",
@@ -125,6 +127,7 @@ def test_format_zone_message_shows_tp_1r_not_distant_tp1():
         "entry_mode": "proximal",
     }
     msg_b = format_zone_message("reaction", zone_b)
-    assert "TP(+1R) 90" in msg_b
-    assert "RR 1.0" in msg_b
+    assert "Réaction +2R" in msg_b
+    assert "TP(+2R) 80" in msg_b
+    assert "RR 2.0" in msg_b
     assert "bas OB" in msg_b or "haut OB" in msg_b

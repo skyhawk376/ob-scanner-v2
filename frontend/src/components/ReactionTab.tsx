@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchStats, fetchZones, refreshStatuses } from '../lib/api'
-import type { StatsResponse, Timeframe, Zone } from '../lib/types'
+import type { RealisticStats, StatsResponse, Timeframe, TradeSummary, Zone } from '../lib/types'
+import { BiasBadge, TradeBadge } from './TradeBadges'
 
 function pct(r: number | null | undefined) {
   if (r == null || Number.isNaN(r)) return '—'
@@ -68,7 +69,7 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
         <div>
           <h2 className="text-lg font-semibold">Réaction</h2>
           <p className="text-xs text-zinc-500">
-            Entrée milieu OB (mid) · SL au-delà du bord distal · +1R sans SL = réaction · wick au SL = échec
+            Entrée milieu OB (mid) · SL au-delà du bord distal · TP +2R · stats réelles : trade compté seulement si le mid est atteint, sortie TP / SL / time stop 1h
           </p>
         </div>
         <button
@@ -85,6 +86,12 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
         <p className="text-sm text-zinc-500">Chargement…</p>
       ) : (
         <>
+          {stats.realistic && <RealisticBlock title="Stats réelles (historique)" r={stats.realistic} />}
+          {stats.realistic_7d && <RealisticBlock title="Stats réelles — 7 derniers jours" r={stats.realistic_7d} compact />}
+
+          <h3 className="mb-2 mt-6 text-sm font-medium text-zinc-400">
+            Ancienne méthode (géré dès le 1er contact, sans time stop — surestime)
+          </h3>
           <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-5">
             <StatCard label="Zones en base" value={String(stats.n)} sub="toutes" />
             <StatCard
@@ -150,6 +157,8 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
                     <th className="px-3 py-2">★</th>
                     <th className="px-3 py-2">Touché</th>
                     <th className="px-3 py-2">Session</th>
+                    <th className="px-3 py-2">Tendance H4/D1</th>
+                    <th className="px-3 py-2">Trade réel</th>
                     <th className="px-3 py-2">MFE</th>
                   </tr>
                 </thead>
@@ -162,6 +171,8 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
                       <td className="px-3 py-2 text-amber-400">{z.score}★</td>
                       <td className="px-3 py-2 text-zinc-400">{fmtTs(z.touched_at)}</td>
                       <td className="px-3 py-2 text-zinc-500">{z.touched_session || '—'}</td>
+                      <td className="px-3 py-2"><BiasBadge zone={z} /></td>
+                      <td className="px-3 py-2"><TradeBadge zone={z} /></td>
                       <td className="px-3 py-2 text-zinc-400">{z.mfe_r?.toFixed(2) ?? '—'}R</td>
                     </tr>
                   ))}
@@ -179,7 +190,9 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
                 <thead className="bg-zinc-900 text-xs uppercase text-zinc-500">
                   <tr>
                     <th className="px-3 py-2">Symbole</th>
-                    <th className="px-3 py-2">Résultat</th>
+                    <th className="px-3 py-2">Résultat (ancien)</th>
+                    <th className="px-3 py-2">Trade réel</th>
+                    <th className="px-3 py-2">Tendance H4/D1</th>
                     <th className="px-3 py-2">★</th>
                     <th className="px-3 py-2">MFE / MAE</th>
                     <th className="px-3 py-2">Session (touch)</th>
@@ -200,6 +213,8 @@ export function ReactionTab({ tf }: { tf: Timeframe }) {
                           {z.status === 'reaction' ? 'Réaction' : 'Échec'}
                         </span>
                       </td>
+                      <td className="px-3 py-2"><TradeBadge zone={z} /></td>
+                      <td className="px-3 py-2"><BiasBadge zone={z} /></td>
                       <td className="px-3 py-2 text-amber-400">{z.score}★</td>
                       <td className="px-3 py-2 text-zinc-400">
                         {z.mfe_r?.toFixed(2) ?? '—'}R / {z.mae_r?.toFixed(2) ?? '—'}R
@@ -283,6 +298,68 @@ function BucketTable({
           </tbody>
         </table>
       )}
+    </div>
+  )
+}
+
+function fmtR(r: number | null | undefined) {
+  if (r == null || Number.isNaN(r)) return '—'
+  return `${r > 0 ? '+' : ''}${r.toFixed(2)}R`
+}
+
+function SummaryRow({ label, s, wd }: { label: string; s: TradeSummary; wd?: number }) {
+  const tpd = s.trades_per_day ?? (wd && wd >= 1 ? s.n / wd : null)
+  return (
+    <tr className="border-t border-zinc-800/60">
+      <td className="py-1 text-zinc-300">{label}</td>
+      <td className="py-1 text-right text-zinc-400">{s.n}</td>
+      <td className="py-1 text-right text-zinc-200">{pct(s.wr)}</td>
+      <td className={`py-1 text-right ${(s.avg_r ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtR(s.avg_r)}</td>
+      <td className="py-1 text-right text-zinc-400">{tpd != null ? tpd.toFixed(2) : '—'}</td>
+    </tr>
+  )
+}
+
+function RealisticBlock({ title, r, compact }: { title: string; r: RealisticStats; compact?: boolean }) {
+  return (
+    <div className="mb-4 rounded-xl border border-blue-900/50 bg-blue-950/10 p-3">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+        <div className="text-sm font-medium text-blue-200">{title}</div>
+        <div className="text-[11px] text-zinc-500">{r.method}</div>
+      </div>
+      {!compact && (
+        <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <StatCard label="Trades réels" value={String(r.n_closed)} accent="text-amber-300"
+            sub={`${r.n_unfilled} non rempli(s) · ${r.n_pending + r.n_open} en attente/en cours`} />
+          <StatCard label="Win rate" value={pct(r.wr)} accent="text-blue-300"
+            sub={Object.entries(r.exits || {}).map(([k, v]) => `${k} ${v}`).join(' · ') || '—'} />
+          <StatCard label="R moyen" value={fmtR(r.avg_r)} accent={(r.avg_r ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}
+            sub={`Σ ${fmtR(r.sum_r)}`} />
+          <StatCard label="Trades / jour ouvré" value={r.trades_per_day != null ? r.trades_per_day.toFixed(2) : '—'}
+            sub={`fenêtre ≈ ${r.weekdays.toFixed(1)} j ouvrés`} />
+          <StatCard label="Taux de fill" value={pct(r.fill_rate)} sub="mid atteint / (rempli + non rempli)" />
+        </div>
+      )}
+      <table className="w-full text-xs">
+        <thead className="text-zinc-500">
+          <tr>
+            <th className="py-1 text-left">Segment</th>
+            <th className="py-1 text-right">Trades</th>
+            <th className="py-1 text-right">WR</th>
+            <th className="py-1 text-right">R moy.</th>
+            <th className="py-1 text-right">/ jour</th>
+          </tr>
+        </thead>
+        <tbody>
+          <SummaryRow label="Tous" s={{ n: r.n_closed, wr: r.wr, avg_r: r.avg_r, trades_per_day: r.trades_per_day }} />
+          <SummaryRow label="✅ Aligné H4+D1" s={r.aligned} />
+          <SummaryRow label={`⚠️ Non aligné (dont ${r.n_aligned_unknown} inconnu)`} s={r.not_aligned} />
+          {!compact &&
+            Object.entries(r.by_group || {}).map(([g, v]) => (
+              <SummaryRow key={g} label={g} s={v} wd={r.weekdays} />
+            ))}
+        </tbody>
+      </table>
     </div>
   )
 }

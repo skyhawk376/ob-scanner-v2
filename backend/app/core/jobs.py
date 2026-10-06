@@ -53,6 +53,34 @@ def is_running() -> bool:
     return bool(_STATE["running"])
 
 
+def _newest_mtime(cache_dir: Path, tf: str) -> float | None:
+    files = list(Path(cache_dir).glob(f"*_{tf}.parquet")) + list(Path(cache_dir).glob(f"*_{tf}.pkl"))
+    if not files:
+        return None
+    return max(f.stat().st_mtime for f in files)
+
+
+def maybe_fetch_d1(
+    settings: Settings, group_list: list[str] | None, *, force: bool = False
+) -> dict[str, Any] | None:
+    """Fetch D1 candles (H4/D1 trend bias, info only) when the D cache is missing or
+    older than BIAS_D1_REFRESH_HOURS. Never scanned. Errors never fail the pipeline."""
+    if not settings.bias_fetch_d1:
+        return None
+    mt = _newest_mtime(settings.cache_dir, "D")
+    if not force and mt is not None and (time.time() - mt) < settings.bias_d1_refresh_hours * 3600:
+        return None
+    try:
+        from .fetcher import fetch_all
+
+        fs = fetch_all(
+            tfs=["D"], groups=group_list, limit=int(settings.bias_d1_limit), write=True, settings=settings
+        )
+        return {"ok": fs.ok_count, "fail": fs.fail_count, "elapsed_sec": round(fs.elapsed_sec, 1)}
+    except Exception as e:  # pragma: no cover
+        return {"error": f"{type(e).__name__}: {e}"[:300]}
+
+
 def run_pipeline(
     *,
     tfs: list[str] | None = None,
@@ -110,6 +138,10 @@ def run_pipeline(
                         if not r.ok
                     ][:20],
                 }
+            if settings.enable_fetch:
+                d1 = maybe_fetch_d1(settings, group_list)
+                if d1 is not None:
+                    summary["steps"]["fetch_d1_bias"] = d1
         for tf in tf_list:
             if scan:
                 from .scanner import run_scan

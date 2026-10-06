@@ -37,13 +37,19 @@ def soft_reaction_r_from_env() -> float:
     return max(0.0, v)
 
 
+def count_tp1_from_env() -> bool:
+    """Count opposing-liquidity tp1 as a reaction before +REACTION_R (legacy). Default OFF:
+    with TP = +2R a nearer tp1 must not be reported as « Réaction +2R »."""
+    return os.environ.get("REACTION_COUNT_TP1", "false").strip().lower() in ("1", "true", "yes", "on")
+
+
 def reaction_r_from_env() -> float:
-    """Primary reaction threshold in R (default 1.0)."""
-    raw = os.environ.get("REACTION_R", "1.0").strip()
+    """Primary reaction threshold in R (default 2.0 = TP +2R, live REACTION_R=2.0)."""
+    raw = os.environ.get("REACTION_R", "2.0").strip()
     try:
         return max(0.01, float(raw))
     except ValueError:
-        return 1.0
+        return 2.0
 
 
 @dataclass
@@ -119,6 +125,7 @@ def simulate_lifecycle(
     if soft_r > 0:
         thresholds.append(soft_r)
     react_threshold = min(thresholds)
+    count_tp1 = count_tp1_from_env()
 
     work = df.copy()
     if not isinstance(work.index, pd.DatetimeIndex):
@@ -222,7 +229,7 @@ def simulate_lifecycle(
                 return state
             tp1 = zone.get("tp1")
             hit_r = h[i] >= entry + react_threshold * risk
-            hit_tp = tp1 is not None and h[i] >= float(tp1)
+            hit_tp = count_tp1 and tp1 is not None and h[i] >= float(tp1)
             if hit_r or hit_tp:
                 state.status = STATUS_REACTION
                 state.outcome = STATUS_REACTION
@@ -243,7 +250,7 @@ def simulate_lifecycle(
                 return state
             tp1 = zone.get("tp1")
             hit_r = l[i] <= entry - react_threshold * risk
-            hit_tp = tp1 is not None and l[i] <= float(tp1)
+            hit_tp = count_tp1 and tp1 is not None and l[i] <= float(tp1)
             if hit_r or hit_tp:
                 state.status = STATUS_REACTION
                 state.outcome = STATUS_REACTION

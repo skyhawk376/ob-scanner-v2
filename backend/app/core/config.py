@@ -59,7 +59,12 @@ class Settings(BaseSettings):
     # Soft reaction (also read directly in lifecycle via env); documented here for Settings.
     enable_soft_reaction: bool = False
     soft_reaction_r: float = 0.5
-    reaction_r: float = 1.0
+    reaction_r: float = 2.0
+    # H4/D1 trend bias (info only, never filters): D1 candles fetched by the pipeline
+    # at most every BIAS_D1_REFRESH_HOURS (no scan on D), H4 resampled from H1.
+    bias_fetch_d1: bool = True
+    bias_d1_refresh_hours: float = 6.0
+    bias_d1_limit: int = 250
 
     # Pipeline / API default groups when `group` omitted. "ALL" = every group (incl. NQ100).
     # UI can still enable NQ100 / ENERGIE explicitly.

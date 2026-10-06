@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchZones, refreshStatuses } from '../lib/api'
 import type { Timeframe, Zone, ZoneStatus } from '../lib/types'
+import { BiasBadge, TradeBadge } from './TradeBadges'
 
 function fmtTs(s?: string | null) {
   if (!s) return '—'
@@ -81,7 +82,7 @@ export function TouchesTab({ tf }: { tf: Timeframe }) {
         <div>
           <h2 className="text-lg font-semibold text-zinc-100">OB Touchés</h2>
           <p className="text-xs text-zinc-500">
-            Premier contact prix ↔ zone · session au touch (Europe/Paris) · tri par date de touch
+            Premier contact prix ↔ zone · session au touch (Europe/Paris) · tendance H4/D1 au touch (info) · trade réel = fill au mid requis, TP +2R / SL / 1h
           </p>
         </div>
         <button
@@ -181,6 +182,8 @@ export function TouchesTab({ tf }: { tf: Timeframe }) {
                 <th className="px-3 py-2">Touché</th>
                 <th className="px-3 py-2">Session</th>
                 <th className="px-3 py-2">Statut</th>
+                <th className="px-3 py-2">Tendance H4/D1</th>
+                <th className="px-3 py-2">Trade réel</th>
                 <th className="px-3 py-2">Zone</th>
               </tr>
             </thead>
@@ -204,6 +207,12 @@ export function TouchesTab({ tf }: { tf: Timeframe }) {
                   <td className="px-3 py-2 text-zinc-400">{z.touched_session || '—'}</td>
                   <td className="px-3 py-2 text-zinc-300">
                     {STATUS_LABEL[z.status as ZoneStatus] || z.status}
+                  </td>
+                  <td className="px-3 py-2">
+                    <BiasBadge zone={z} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <TradeBadge zone={z} />
                   </td>
                   <td className="px-3 py-2 text-zinc-500">
                     {z.low.toPrecision(5)}–{z.high.toPrecision(5)}

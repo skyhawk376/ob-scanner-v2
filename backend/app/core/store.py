@@ -73,6 +73,13 @@ CREATE TABLE IF NOT EXISTS notify_log (
 );
 """
 
+# Payload-only fields computed by the monitor (bias at touch, realistic trade).
+PAYLOAD_EXTRA_KEYS = (
+    "bias_h4", "bias_d1", "aligned_h4d1", "bias_at",
+    "trade_status", "trade_r", "trade_exit", "trade_fill_at", "trade_exit_at",
+    "trade_model", "trade_tp", "trade_tp_r", "trade_ref",
+)
+
 _EXTRA_COLS = {
     "status": "TEXT DEFAULT 'active'",
     "touched_at": "TEXT",
@@ -249,12 +256,20 @@ def upsert_zones(
         for row in cur.execute(
             f"""
             SELECT id, status, touched_at, touched_session, reacted_at, failed_at,
-                   expired_at, outcome, mfe_r, mae_r
+                   expired_at, outcome, mfe_r, mae_r, payload
             FROM zones WHERE id IN ({qmarks})
             """,
             list(new_ids),
         ):
-            existing[row["id"]] = {k: row[k] for k in ("id", *LIFE_KEYS)}
+            rec = {k: row[k] for k in ("id", *LIFE_KEYS)}
+            try:
+                old_payload = json.loads(row["payload"] or "{}")
+            except (TypeError, ValueError):
+                old_payload = {}
+            rec["_payload_extra"] = {
+                k: old_payload[k] for k in PAYLOAD_EXTRA_KEYS if k in old_payload
+            }
+            existing[row["id"]] = rec
 
     # Drop stale *active* zones in scope that are not in this scan
     if scope_tf and symbols is not None:
@@ -312,6 +327,9 @@ def upsert_zones(
                 for k in LIFE_KEYS:
                     if old.get(k) is not None:
                         d[k] = old[k]
+                # bias at touch + realistic trade fields live in the payload only
+                for k, v in (old.get("_payload_extra") or {}).items():
+                    d.setdefault(k, v)
 
         rows.append(
             (
