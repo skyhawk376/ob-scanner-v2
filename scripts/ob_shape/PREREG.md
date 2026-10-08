@@ -32,3 +32,21 @@ Written 2026-10-08 ~10:40 Paris, before any success/failure comparison was run.
 1. On TRAIN only: rank features by univariate separation (hold tp-rate and r_net), bucket tables.
 2. Write 2–3 candidate rules (simple thresholds, interpretable) into this file + commit **before** computing TEST.
 3. TEST: trades kept, WR, avg R gross/net, 95 % CI, vs the unfiltered baseline and vs a random subset of the same size (1000 draws).
+
+## Addendum — candidate rules, fixed after TRAIN exploration, BEFORE reading TEST (2026-10-08 ~11:20 Paris)
+
+TRAIN findings that motivated them (`explore_train.py`, `explore_confirm_entry.py`):
+* No OB-shape feature separates hold-tp from hold-sl (all |AUC − 0.5| ≤ 0.02 pooled; ≤ 0.04 on H1).
+  Only touch-bar features separate (touch candle body/close-through), but they are known only after the fill
+  (the SL is usually hit inside that candle). A "wait for a rejection close, then arm the limit" entry did not
+  help on TRAIN (pooled gross −0.009 vs +0.004).
+* Textbook score (T1–T8): 0 fails −0.054R gross vs 4 fails +0.043R — no benefit on TRAIN.
+* Approach speed (ATR/bar from the post-BOS extreme to the touch): slow quintile +0.07R gross, fast −0.02/−0.06.
+* Cost in R is by far the largest driver of NET (cost_r ≤ 0.05: −0.13R net; > 0.4: −1.5R net).
+
+Rules (applied to the realistic live sim, all TFs pooled, also shown per TF):
+* **R1 textbook**: tb_fails ≤ 1 (the user's hypothesis "fake OBs lose").
+* **R2 slow approach**: approach_speed ≤ 0.40 ATR/bar (≈ TRAIN 40th pct; known before the touch).
+* **R3 cost-aware**: cost_r ≤ 0.10 (planned risk ≥ 10× round-trip cost; drops micro zones).
+* **R2+R3** combined.
+Pass bar: TEST net > 0 with 95 % CI above 0, and filtered mean above the 95th pct of random same-size subsets.
