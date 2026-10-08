@@ -29,4 +29,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
   CMD curl -fsS "http://127.0.0.1:${PORT:-8000}/healthz" || exit 1
 # ONE worker on purpose: the APScheduler lives in-process and SQLite is single-writer.
-CMD ["sh", "-c", "exec uvicorn app.api.main:app --app-dir backend --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "exec uvicorn app.api.asgi:app --app-dir backend --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --proxy-headers --forwarded-allow-ips='*'"]
