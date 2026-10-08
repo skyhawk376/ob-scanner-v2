@@ -20,7 +20,7 @@ from .lifecycle import (
     merge_lifecycle_into_payload,
     simulate_lifecycle,
 )
-from .store import connect, list_zones, replace_zones, update_zone_lifecycle
+from .store import connect, delete_zone, list_zones, replace_zones, update_zone_lifecycle
 from .symbols import load_instruments
 from .telegram import notify_zone_event
 from .trade_sim import (
@@ -106,6 +106,11 @@ class RefreshSummary:
     elapsed_sec: float = 0.0
     n_zones: int = 0
     mode: str = "refresh"
+    # zones missing from the last scan resolved by this refresh
+    vanished_touched: int = 0  # touched since last check → normal alert flow
+    vanished_expired: int = 0  # kept as expiree
+    vanished_pruned: int = 0  # never touched/expired → deleted (detection drop)
+    stale_skipped: int = 0  # alerts not sent: event older than the TF staleness limit
 
 
 def _prune_lowtf_expired(conn, tf: str, settings: Settings) -> int:
@@ -145,10 +150,16 @@ def refresh_statuses(
     groups: Iterable[str] | None = None,
     symbols: Iterable[str] | None = None,
     notify_since: float | None = None,
+    now: datetime | None = None,
 ) -> RefreshSummary:
     """Update lifecycle for stored zones, or backfill from history detection.
 
     history=True: re-detect with require_fresh=False then simulate (for Touches/Réaction stats).
+
+    Refresh mode also resolves zones flagged ``vanished_at`` by the scan (active zone no
+    longer detected, typically touched inside the last bar): the lifecycle is simulated
+    on the latest candles BEFORE anything is pruned, so a touch → touchee (+ alert once,
+    go-live + staleness guards), expiry → expiree, otherwise → deleted.
     """
     settings = settings or get_settings()
     settings.results_dir.mkdir(parents=True, exist_ok=True)
@@ -248,7 +259,7 @@ def refresh_statuses(
             # Low TFs: drop long-expired zones so SQLite / refresh stay small
             _prune_lowtf_expired(conn, tf, settings)
             # Refresh existing DB rows
-            zones = list_zones(conn, tf=tf, min_score=1, limit=5000)
+            zones = list_zones(conn, tf=tf, min_score=1, limit=5000, include_vanished=True)
             filtered = []
             for z in zones:
                 if group_set and gmap.get(z["symbol"], "").upper() not in group_set:
@@ -269,16 +280,40 @@ def refresh_statuses(
                 life = simulate_lifecycle(
                     df, z, require_entry_fill=require_entry_fill_for_mode()
                 )
+                vanished = bool(z.get("vanished_at")) and prev == STATUS_ACTIVE
+                if vanished and life.status == STATUS_ACTIVE:
+                    # Missing from the scan but never touched nor expired → dropped for a
+                    # detection reason (score/structure): genuinely not a live zone.
+                    delete_zone(conn, z["id"])
+                    conn.commit()
+                    summary.vanished_pruned += 1
+                    continue
                 merged = merge_lifecycle_into_payload(z, life)
                 enrich(merged, df)
                 update_zone_lifecycle(conn, merged)
                 # Commit per zone so a crash mid-loop cannot re-fire transitions
                 conn.commit()
                 summary.updated += 1
+                if vanished:
+                    if life.status == STATUS_EXPIREE:
+                        summary.vanished_expired += 1
+                    else:
+                        summary.vanished_touched += 1
+                        print(
+                            f"[refresh] late touch {merged['id']} → {life.status} "
+                            f"touched_at={merged.get('touched_at')} (zone left the scan "
+                            f"{z.get('vanished_at')})",
+                            flush=True,
+                        )
                 if life.status != prev:
                     # Go-live guard: a TF that just started alerting never notifies zones
                     # first touched before it was armed (no burst at deploy).
                     zone_notify = notify and _touched_since(merged.get("touched_at"), notify_since)
+                    if zone_notify and not _event_recent(merged, life.status, tf, settings, now):
+                        # Staleness guard: never alert an event older than ~2 bars of
+                        # the TF (min 1 h) + one scan cadence (late detection, downtime).
+                        zone_notify = False
+                        summary.stale_skipped += 1
                     summary.transitions.append(
                         {
                             "id": merged["id"],
@@ -331,6 +366,58 @@ def refresh_statuses(
 
     summary.elapsed_sec = time.time() - t0
     return summary
+
+
+def alert_max_age_sec(tf: str | None, settings: Settings | None = None) -> float:
+    """Oldest event (bar-open timestamp) still worth a Telegram alert for this TF.
+
+    max(2 bars, 1 h) + one scan cadence (TF_SCHEDULE): a touch is only seen once its
+    bar is in the cache, at most one bar + one cadence after the bar opened, so a
+    legit late-detected touch always passes; anything older (missed by downtime or
+    fetch failures) is recorded silently instead of bursting. M5 ≈ 65 min · M15 ≈ 75
+    min · M30 ≈ 90 min · H1 2h15 · H4 9 h · D 50 h · W ≈ 14 d 6 h.
+    """
+    from .timeframes import TF_MINUTES, normalize_tf
+
+    settings = settings or get_settings()
+    t = normalize_tf(tf) or "H1"
+    bar = TF_MINUTES.get(t, 60) * 60
+    try:
+        cad = float(settings.tf_cadence.get(t, 15)) * 60
+    except Exception:  # pragma: no cover
+        cad = 15 * 60
+    return max(2 * bar, 3600) + cad
+
+
+_EVENT_TS_KEY = {
+    STATUS_TOUCHEE: "touched_at",
+    STATUS_REACTION: "reacted_at",
+    STATUS_ECHEC: "failed_at",
+}
+
+
+def _event_recent(
+    zone: dict[str, Any],
+    status: str,
+    tf: str | None,
+    settings: Settings | None = None,
+    now: datetime | None = None,
+) -> bool:
+    """True when the event behind `status` (touch / reaction / échec bar open) is
+    within alert_max_age_sec of now. Unknown timestamp → True (never blocks)."""
+    key = _EVENT_TS_KEY.get(status)
+    if key is None:
+        return True
+    t = _parse_ts(zone.get(key))
+    if t is None:
+        return True
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
+    ref = now or datetime.now(timezone.utc)
+    if ref.tzinfo is None:
+        ref = ref.replace(tzinfo=timezone.utc)
+    age = (ref - t).total_seconds()
+    return age <= alert_max_age_sec(zone.get("tf") or tf, settings)
 
 
 def _touched_since(touched_at: str | None, since: float | None) -> bool:

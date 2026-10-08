@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS zones (
     expired_at TEXT,
     outcome TEXT,
     mfe_r REAL DEFAULT 0,
-    mae_r REAL DEFAULT 0
+    mae_r REAL DEFAULT 0,
+    vanished_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_zones_symbol_tf ON zones(symbol, tf);
 CREATE INDEX IF NOT EXISTS idx_zones_score ON zones(score);
@@ -90,6 +91,10 @@ _EXTRA_COLS = {
     "outcome": "TEXT",
     "mfe_r": "REAL DEFAULT 0",
     "mae_r": "REAL DEFAULT 0",
+    # Set when an *active* zone is missing from a later scan (e.g. touched inside the
+    # last bar → no longer virgin). The row is kept until the lifecycle refresh has
+    # checked the candles since its last check (see monitor.refresh_statuses).
+    "vanished_at": "TEXT",
 }
 
 
@@ -226,8 +231,17 @@ def upsert_zones(
 
     - Preserves status/touched_at/reacted_at/... for existing zone IDs when the
       incoming row is still 'active' (fresh scan does not carry lifecycle).
-    - Deletes only *active* zones in scope that are absent from this scan
-      (keeps touchee/reaction/echec/expiree from prior refreshes).
+    - *Active* zones in scope that are absent from this scan are NOT deleted here:
+      they are flagged ``vanished_at`` (first time only) and hidden from listings.
+      A zone usually vanishes because price touched it inside the last bar (no longer
+      virgin) — deleting it before the lifecycle refresh ran lost the first-touch
+      alert. ``monitor.refresh_statuses`` then walks the candles: touched → normal
+      touchee/reaction/échec flow (alert once, guarded); expired → ``expiree``;
+      still untouched/unexpired (dropped for a detection reason, e.g. score) →
+      deleted there (see ``delete_zone``).
+    - A flagged zone that shows up again in a scan is re-inserted with the flag
+      cleared (INSERT OR REPLACE).
+    - Zones already progressed (touchee/reaction/echec/expiree) are never touched.
     """
     cur = conn.cursor()
     rows_in: list[dict[str, Any]] = []
@@ -271,49 +285,24 @@ def upsert_zones(
             }
             existing[row["id"]] = rec
 
-    # Drop stale *active* zones in scope that are not in this scan
-    if scope_tf and symbols is not None:
-        qmarks = ",".join("?" * len(symbols))
+    # Flag (never delete) *active* zones in scope that are missing from this scan.
+    flag_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    if scope_tf:
+        clauses = ["tf=?", "(status IS NULL OR status = 'active')", "vanished_at IS NULL"]
+        args: list[Any] = [scope_tf]
+        if symbols is not None:
+            if not symbols:
+                clauses.append("0")
+            else:
+                clauses.append(f"symbol IN ({','.join('?' * len(symbols))})")
+                args.extend(symbols)
         if new_ids:
-            id_marks = ",".join("?" * len(new_ids))
-            cur.execute(
-                f"""
-                DELETE FROM zones
-                WHERE tf=? AND symbol IN ({qmarks})
-                  AND (status IS NULL OR status = 'active')
-                  AND id NOT IN ({id_marks})
-                """,
-                [scope_tf, *symbols, *new_ids],
-            )
-        else:
-            cur.execute(
-                f"""
-                DELETE FROM zones
-                WHERE tf=? AND symbol IN ({qmarks})
-                  AND (status IS NULL OR status = 'active')
-                """,
-                [scope_tf, *symbols],
-            )
-    elif scope_tf:
-        if new_ids:
-            id_marks = ",".join("?" * len(new_ids))
-            cur.execute(
-                f"""
-                DELETE FROM zones
-                WHERE tf=?
-                  AND (status IS NULL OR status = 'active')
-                  AND id NOT IN ({id_marks})
-                """,
-                [scope_tf, *new_ids],
-            )
-        else:
-            cur.execute(
-                """
-                DELETE FROM zones
-                WHERE tf=? AND (status IS NULL OR status = 'active')
-                """,
-                (scope_tf,),
-            )
+            clauses.append(f"id NOT IN ({','.join('?' * len(new_ids))})")
+            args.extend(new_ids)
+        cur.execute(
+            f"UPDATE zones SET vanished_at=? WHERE {' AND '.join(clauses)}",
+            [flag_at, *args],
+        )
 
     now = datetime.now(timezone.utc).isoformat()
     rows = []
@@ -463,6 +452,7 @@ def list_zones(
     statuses: list[str] | None = None,
     limit: int = 500,
     active_only_for_scanner: bool = False,
+    include_vanished: bool = False,
 ) -> list[dict[str, Any]]:
     clauses = ["score >= ?"]
     args: list[Any] = [min_score]
@@ -485,12 +475,16 @@ def list_zones(
         args.extend(statuses)
     if active_only_for_scanner:
         clauses.append("(status IS NULL OR status = 'active')")
+    if not include_vanished:
+        # Active zones missing from the last scan await the lifecycle check (refresh);
+        # hide them like the old delete did. Progressed ones (touchee…) stay visible.
+        clauses.append("NOT (vanished_at IS NOT NULL AND (status IS NULL OR status = 'active'))")
     where = " AND ".join(clauses)
     args.append(limit)
     cur = conn.execute(
         f"""
         SELECT payload, status, touched_at, touched_session, reacted_at, failed_at,
-               expired_at, outcome, mfe_r, mae_r
+               expired_at, outcome, mfe_r, mae_r, vanished_at
         FROM zones
         WHERE {where}
         ORDER BY
@@ -521,8 +515,18 @@ def list_zones(
                 d[k] = row[k]
         if "status" not in d:
             d["status"] = "active"
+        if row["vanished_at"] is not None:
+            d["vanished_at"] = row["vanished_at"]
+        else:
+            d.pop("vanished_at", None)
         out.append(d)
     return out
+
+
+def delete_zone(conn: sqlite3.Connection, zone_id: str) -> int:
+    """Delete one zone row (refresh: vanished from the scan, never touched/expired)."""
+    cur = conn.execute("DELETE FROM zones WHERE id=?", (zone_id,))
+    return int(cur.rowcount or 0)
 
 
 def count_by_status(conn: sqlite3.Connection, *, tf: str | None = None) -> dict[str, int]:

@@ -289,6 +289,13 @@ def run_pipeline(
                     "notifications": rs.notifications,
                     "alerts_enabled": settings.tf_alerts_enabled(tf),
                     "warmup_silent": warmup,
+                    # active zones missing from this scan, resolved before any prune
+                    "vanished": {
+                        "touched": getattr(rs, "vanished_touched", 0),
+                        "expired": getattr(rs, "vanished_expired", 0),
+                        "pruned": getattr(rs, "vanished_pruned", 0),
+                    },
+                    "stale_alerts_skipped": getattr(rs, "stale_skipped", 0),
                     "elapsed_sec": round(rs.elapsed_sec, 1),
                 }
             if warmup:

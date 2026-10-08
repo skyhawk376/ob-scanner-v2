@@ -163,7 +163,9 @@ def run_scan(
         try:
             for tf in tf_list:
                 z_tf = [z for z in all_zones if z.tf == tf]
-                syms = {i.id for i in filtered}
+                # Only symbols whose scan succeeded: a missing cache / detection error
+                # must not flag that symbol's live zones as vanished.
+                syms = {m.symbol for m in summary.per_symbol if m.tf == tf and m.ok}
                 upsert_zones(conn, z_tf, tf=tf, symbols=syms, preserve_lifecycle=True)
             record_run(
                 conn,
