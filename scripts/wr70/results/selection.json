@@ -1,0 +1,13 @@
+{
+ "selected": "E1|tp0.3|3h|be0|H1H4",
+ "eligible": false,
+ "top5": [
+  "E1|tp0.3|3h|be0|H1H4",
+  "E1|tp0.3|1h|be0|H1H4",
+  "E3|tp0.3|3h|be0|cost10",
+  "E2|tp0.3|3h|be0|cost10",
+  "E1|tp0.3|3h|be0|cost10"
+ ],
+ "n_configs": 75,
+ "n_eligible": 0
+}
