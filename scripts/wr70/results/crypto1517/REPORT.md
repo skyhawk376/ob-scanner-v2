@@ -25,8 +25,8 @@ No config reached TRAIN WR ≥ 72 % with ≥ 100 trades → fallback = highest T
 
 * **≥ 70 % WR on TEST: 1 config of 120** (E3 tp0.3 3h cost≤0.10, 28 wins / 39) — a multiple-testing pick on n=39, still net −0.12 R
   (needs ≈ 80 %+ WR to break even at TP 0.3 R after costs). Its TRAIN WR was 69 % (n=81, net −0.13 R).
-* **Profitable after fees: none.** 0/120 configs have a net CI above 0; 119/120 have negative net avg R point estimates
-  (exception: none positive — best is −0.089 R). No config beats its random p95 with a positive net.
+* **Profitable after fees: none.** 0/120 configs have a net CI above 0; all 112 configs with trades have a negative net avg R (8 E1 cost≤0.10 configs have 0 trades)
+  (best −0.089 R). No config beats its random p95 with a positive net.
 * The prod-like mid limit (E1) is the worst: WR 9–44 %, −0.54 to −1.81 R/trade — micro zones, fees ≈ a third of the risk.
 
 ## Verdict
