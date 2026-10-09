@@ -53,3 +53,13 @@ breakdown by TF and asset group; alerts/day.
   market at close + 3 min; fill must be ≤ t₀ + W + 3 min. 4 configs (TF{same,ltf} × {1h,3h}).
 * Grid total = 42 configs (+2 info). T5 is a family for the selection rule (best TRAIN net with ≥ 300 trades; if no T5 config
   reaches 300 TRAIN trades, the one with most trades is reported, flagged as under-powered). Same success bar.
+
+## Addendum 2 (2026-10-09 ~18:30 Paris, before any outcome) — T6 "reversal first, else sweep & reclaim" (the user's rule)
+* Reversal part = the pre-selected config of the best reversal-candle family among T1/T2/T4 (TRAIN selection rule above;
+  its trigger TF, SL variant and hold/window W are kept).
+* Fallback = T5a with the same W/hold (stop at the original entry after a sweep beyond the zone SL, live from sweep + 3 min,
+  SL = sweep extreme − 0.05 ATR, TP +2R, fill ≤ t₀ + W).
+* Per zone, one trade max: if the reversal trigger fires before the T5a fill → reversal trade; if T5a fills first (i.e. no reversal
+  had happened, price swept and came back to entry) → late entry; else no trade. (A reversal trade stopped out is not re-entered.)
+* T6 is evaluated with the same success bar (random baseline = same zones, random minute in [t₀, t₀+W], same SL price/hold).
+  T5 standalone is kept as a comparison family.
