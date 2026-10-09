@@ -1,0 +1,168 @@
+{
+ "period": [
+  "2025-10-01",
+  "2026-09-30"
+ ],
+ "weekdays": 260,
+ "zones": 151817,
+ "zones_alerted_touch": 31194,
+ "touch_alerts_per_day": 119.98,
+ "all": {
+  "n": 18925,
+  "wr_tp": 0.237,
+  "sl": 9789,
+  "be": 4660,
+  "avg_r_gross": -0.044,
+  "avg_r_net": -0.502,
+  "sum_r_net": -9502.6,
+  "per_day": 72.79
+ },
+ "by_tf": {
+  "D": {
+   "n": 11,
+   "wr_tp": 0.273,
+   "sl": 4,
+   "be": 4,
+   "avg_r_gross": 0.182,
+   "avg_r_net": 0.091,
+   "sum_r_net": 1.0,
+   "per_day": 0.04
+  },
+  "H1": {
+   "n": 987,
+   "wr_tp": 0.242,
+   "sl": 500,
+   "be": 248,
+   "avg_r_gross": -0.022,
+   "avg_r_net": -0.155,
+   "sum_r_net": -153.2,
+   "per_day": 3.8
+  },
+  "H4": {
+   "n": 172,
+   "wr_tp": 0.238,
+   "sl": 87,
+   "be": 44,
+   "avg_r_gross": -0.029,
+   "avg_r_net": -0.091,
+   "sum_r_net": -15.6,
+   "per_day": 0.66
+  },
+  "M15": {
+   "n": 3393,
+   "wr_tp": 0.245,
+   "sl": 1721,
+   "be": 840,
+   "avg_r_gross": -0.017,
+   "avg_r_net": -0.294,
+   "sum_r_net": -998.0,
+   "per_day": 13.05
+  },
+  "M30": {
+   "n": 1554,
+   "wr_tp": 0.256,
+   "sl": 767,
+   "be": 389,
+   "avg_r_gross": 0.019,
+   "avg_r_net": -0.15,
+   "sum_r_net": -232.4,
+   "per_day": 5.98
+  },
+  "M5": {
+   "n": 12807,
+   "wr_tp": 0.231,
+   "sl": 6709,
+   "be": 3135,
+   "avg_r_gross": -0.061,
+   "avg_r_net": -0.633,
+   "sum_r_net": -8103.4,
+   "per_day": 49.26
+  },
+  "W": {
+   "n": 1,
+   "wr_tp": 0.0,
+   "sl": 1,
+   "be": 0,
+   "avg_r_gross": -1.0,
+   "avg_r_net": -1.008,
+   "sum_r_net": -1.0,
+   "per_day": 0.0
+  }
+ },
+ "by_group": {
+  "CRYPTO": {
+   "n": 4425,
+   "wr_tp": 0.252,
+   "sl": 2256,
+   "be": 1055,
+   "avg_r_gross": -0.006,
+   "avg_r_net": -0.626,
+   "sum_r_net": -2770.3,
+   "per_day": 17.02
+  },
+  "FOREX": {
+   "n": 10949,
+   "wr_tp": 0.232,
+   "sl": 5638,
+   "be": 2776,
+   "avg_r_gross": -0.052,
+   "avg_r_net": -0.523,
+   "sum_r_net": -5730.0,
+   "per_day": 42.11
+  },
+  "METAUX": {
+   "n": 2290,
+   "wr_tp": 0.237,
+   "sl": 1211,
+   "be": 537,
+   "avg_r_gross": -0.055,
+   "avg_r_net": -0.291,
+   "sum_r_net": -665.3,
+   "per_day": 8.81
+  },
+  "NQ100": {
+   "n": 1261,
+   "wr_tp": 0.226,
+   "sl": 684,
+   "be": 292,
+   "avg_r_gross": -0.09,
+   "avg_r_net": -0.267,
+   "sum_r_net": -337.0,
+   "per_day": 4.85
+  }
+ },
+ "by_trigger": {
+  "englobante": {
+   "n": 8009,
+   "wr_tp": 0.23,
+   "sl": 4226,
+   "be": 1937,
+   "avg_r_gross": -0.067,
+   "avg_r_net": -0.473,
+   "sum_r_net": -3785.8,
+   "per_day": 30.8
+  },
+  "marteau": {
+   "n": 5555,
+   "wr_tp": 0.238,
+   "sl": 2845,
+   "be": 1390,
+   "avg_r_gross": -0.037,
+   "avg_r_net": -0.525,
+   "sum_r_net": -2915.0,
+   "per_day": 21.37
+  },
+  "étoile filante": {
+   "n": 5361,
+   "wr_tp": 0.244,
+   "sl": 2718,
+   "be": 1333,
+   "avg_r_gross": -0.018,
+   "avg_r_net": -0.523,
+   "sum_r_net": -2801.9,
+   "per_day": 20.62
+  }
+ },
+ "symbols": "XAUUSD,XAGUSD,7 FX,BTC,ETH,SOL,NAS100 (M1 historique)",
+ "note": "Contrôle de cohérence des règles v3 (pas une optimisation). R net = après spread+commission+slippage."
+}

@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     sched_tick_min: int = 5
     # Low-TF cache retention (bars kept per symbol/TF; 0 = unlimited). Detection only
     # needs ~500 bars; lifecycle ≤ 200 bars after the OB.
-    cache_max_bars: str = "M5:6000,M15:4000,M30:3000"
+    cache_max_bars: str = "M1:3000,M5:6000,M15:4000,M30:3000"
     # Expired low-TF zones (M5/M15/M30) are pruned from SQLite after N days.
     lowtf_expired_retention_days: float = 3.0
     # Telegram alerts only for zones of these TFs (default: all 7, user request
@@ -91,6 +91,16 @@ class Settings(BaseSettings):
     # clamped to DEFAULT_SCAN_GROUPS and >= DEFAULT_MIN_SCORE. Set STRATEGY_LOCK=false
     # to get the old "explore everything" behaviour (local dev / research).
     strategy_lock: bool = True
+
+    # ---- v3 « Kasper » engine (STRATEGY_V3.md) ----
+    # Universe of the v3 scanner/alerts (independent of the old Filtre B DEFAULT_SCAN_GROUPS).
+    v3_groups: str = "METAUX,FOREX,CRYPTO,NQ100"
+    # NQ100 = the Nasdaq-100 index (NAS100, Yahoo NQ=F). true = also the ~60 stocks.
+    v3_nq100_stocks: bool = False
+
+    @property
+    def v3_group_list(self) -> list[str]:
+        return [g.strip().upper() for g in self.v3_groups.split(",") if g.strip()]
 
     # Entry: proximal (bull=OB high / bear=OB low) | mid (legacy 50% / open)
     entry_mode: str = "mid"

@@ -9,6 +9,7 @@ ALL_TFS: tuple[str, ...] = ("M5", "M15", "M30", "H1", "H4", "D", "W")
 INTRADAY_LOW_TFS: tuple[str, ...] = ("M5", "M15", "M30")
 
 TF_MINUTES: dict[str, int] = {
+    "M1": 1,
     "M5": 5,
     "M15": 15,
     "M30": 30,
@@ -26,6 +27,7 @@ TF_RANK: dict[str, int] = {"W": 0, "D": 1, "H4": 2, "H1": 3, "M30": 4, "M15": 5,
 TF_PRIORITY: tuple[str, ...] = ("H1", "M5", "M15", "M30", "H4", "D", "W")
 
 _ALIASES: dict[str, str] = {
+    "M1": "M1", "1M": "M1", "1MIN": "M1",
     "M5": "M5", "5M": "M5", "5MIN": "M5", "5": "M5",
     "M15": "M15", "15M": "M15", "15MIN": "M15", "15": "M15",
     "M30": "M30", "30M": "M30", "30MIN": "M30", "30": "M30",

@@ -13,3 +13,5 @@ frontend/dist
 /*.tgz
 /*.zip
 /*.png
+frontend/node_modules
+frontend/dist

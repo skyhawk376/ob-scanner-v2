@@ -60,27 +60,6 @@ def _newest_mtime(cache_dir: Path, tf: str) -> float | None:
     return max(f.stat().st_mtime for f in files)
 
 
-def maybe_fetch_d1(
-    settings: Settings, group_list: list[str] | None, *, force: bool = False
-) -> dict[str, Any] | None:
-    """Fetch D1 candles (H4/D1 trend bias, info only) when the D cache is missing or
-    older than BIAS_D1_REFRESH_HOURS. Never scanned. Errors never fail the pipeline."""
-    if not settings.bias_fetch_d1:
-        return None
-    mt = _newest_mtime(settings.cache_dir, "D")
-    if not force and mt is not None and (time.time() - mt) < settings.bias_d1_refresh_hours * 3600:
-        return None
-    try:
-        from .fetcher import fetch_all
-
-        fs = fetch_all(
-            tfs=["D"], groups=group_list, limit=int(settings.bias_d1_limit), write=True, settings=settings
-        )
-        return {"ok": fs.ok_count, "fail": fs.fail_count, "elapsed_sec": round(fs.elapsed_sec, 1)}
-    except Exception as e:  # pragma: no cover
-        return {"error": f"{type(e).__name__}: {e}"[:300]}
-
-
 def _tf_runs_path(settings: Settings) -> Path:
     return Path(settings.results_dir) / "tf_runs.json"
 
@@ -140,24 +119,6 @@ def run_due(trigger: str = "schedule", settings: Settings | None = None) -> dict
     return run_pipeline(tfs=tfs, trigger=trigger, settings=settings)
 
 
-def _tf_has_zones(settings: Settings, tf: str) -> bool:
-    """Any stored zone for this TF (H1 on prod → True: it was already alerting)."""
-    try:
-        from .store import connect
-
-        db = settings.db_path
-        if not Path(db).exists():
-            return False
-        conn = connect(db)
-        try:
-            row = conn.execute("SELECT 1 FROM zones WHERE tf=? LIMIT 1", (tf.upper(),)).fetchone()
-            return row is not None
-        finally:
-            conn.close()
-    except Exception:
-        return False  # unknown → warm-up (silent run) rather than risk an alert burst
-
-
 def _tf_limit(settings: Settings, tf: str, limit: int | None) -> int:
     """Explicit limit wins; else bootstrap depth when the TF cache is empty."""
     if limit:
@@ -179,8 +140,10 @@ def run_pipeline(
     trigger: str = "manual",
     settings: Settings | None = None,
 ) -> dict[str, Any]:
-    """Run fetch → scan → refresh per TF (H1 first). Returns a summary; skips if
-    already running. Telegram is gated per TF by ALERT_TFS inside notify_zone_event."""
+    """v3 pipeline per TF (H1 first): fetch candles → v3 refresh (detect → simulate →
+    persist → Telegram), then track every open zone/trade of the other TFs on their
+    lower TF. Telegram gated by ALERT_TFS + per-TF go-live arming (v3_meta)."""
+    from ..v3.service import refresh_tf, track_open, universe
     from .timeframes import by_priority, parse_tf_list
 
     settings = settings or get_settings()
@@ -188,19 +151,20 @@ def run_pipeline(
         return {"skipped": True, "reason": "pipeline already running", "current": _STATE["current"]}
 
     tf_list = by_priority(parse_tf_list(tfs)) if tfs else settings.pipeline_tfs
-    # None → DEFAULT_SCAN_GROUPS (NQ100 off by default); pass groups="ALL" for full universe
-    group_list = settings.clamp_groups(groups)  # Filtre B lock → METAUX,FOREX,CRYPTO
-    if group_list is not None and not group_list:
-        group_list = settings.strategy_groups
     lim = int(limit or settings.fetch_limit)
     started = time.time()
-    min_score = settings.clamp_min_score(int(settings.default_min_score))
+    syms = [i.id for i in universe(settings)]
+    if groups:
+        gl = settings.resolved_scan_groups(groups)
+        if gl:
+            syms = [i.id for i in universe(settings) if i.group in gl]
     summary: dict[str, Any] = {
+        "engine": "v3",
         "trigger": trigger,
         "started_at": _now_iso(),
         "tfs": tf_list,
-        "groups": group_list if group_list is not None else "ALL",
-        "min_score": min_score,
+        "groups": settings.v3_group_list,
+        "n_symbols": len(syms),
         "limit": lim,
         "alert_tfs": settings.alert_tf_list,
         "steps": {},
@@ -211,15 +175,9 @@ def run_pipeline(
     agg: dict[str, Any] = {"ok": 0, "fail": 0, "elapsed_sec": 0.0, "by_source": {}, "failures": []}
     did_fetch = False
     try:
-        runs_before = read_tf_runs(settings)
         for tf in tf_list:
             t_tf = time.time()
             rec: dict[str, Any] = {"last_run": _now_iso(), "last_run_ts": t_tf, "trigger": trigger}
-            prev = runs_before.get(tf) or {}
-            # Go-live warm-up: first live run of a TF that has no zones yet → lifecycle
-            # recorded silently, alerts armed only for touches after this run.
-            warmup = bool(notify and not history and not prev and not _tf_has_zones(settings, tf))
-            armed_at = prev.get("armed_at_ts")
             if fetch:
                 if not settings.enable_fetch:
                     summary["steps"]["fetch"] = {"skipped": "ENABLE_FETCH=false"}
@@ -227,7 +185,7 @@ def run_pipeline(
                     from .fetcher import fetch_all
 
                     tf_lim = _tf_limit(settings, tf, limit)
-                    fs = fetch_all(tfs=[tf], groups=group_list, limit=tf_lim, write=True, settings=settings)
+                    fs = fetch_all(tfs=[tf], symbols=syms, limit=tf_lim, write=True, settings=settings)
                     did_fetch = True
                     fails = [
                         f"{r.symbol} {r.tf} {r.source}: {(r.error or '')[:120]}"
@@ -252,67 +210,21 @@ def run_pipeline(
                         a["fail"] += b.get("fail", 0)
                     agg["failures"] = (agg["failures"] + fails)[:20]
                     rec.update(fetch_ok=fs.ok_count, fetch_fail=fs.fail_count)
-            if scan:
-                from .scanner import run_scan
-
-                ss = run_scan(
-                    tfs=[tf],
-                    groups=group_list,
-                    persist=True,
-                    min_score=min_score,
-                    settings=settings,
-                )
-                summary["steps"][f"scan_{tf}"] = {
-                    "zones": len(ss.zones),
-                    "symbols_ok": sum(1 for s in ss.per_symbol if s.ok),
-                    "min_score": min_score,
-                    "elapsed_sec": round(ss.elapsed_sec, 1),
-                }
-                rec["zones"] = len(ss.zones)
-            if refresh:
-                from .monitor import refresh_statuses
-
-                rs = refresh_statuses(
-                    tf=tf,
-                    history=history,
-                    groups=group_list,
-                    min_score=min_score,
-                    notify=notify and not warmup,
-                    force_dry_telegram=None,  # honour TELEGRAM_DRY_RUN
-                    settings=settings,
-                    notify_since=armed_at,
-                )
-                summary["steps"][f"refresh_{tf}"] = {
-                    "mode": rs.mode,
-                    "updated": rs.updated,
-                    "by_status": rs.by_status,
-                    "notifications": rs.notifications,
-                    "alerts_enabled": settings.tf_alerts_enabled(tf),
-                    "warmup_silent": warmup,
-                    # active zones missing from this scan, resolved before any prune
-                    "vanished": {
-                        "touched": getattr(rs, "vanished_touched", 0),
-                        "expired": getattr(rs, "vanished_expired", 0),
-                        "pruned": getattr(rs, "vanished_pruned", 0),
-                    },
-                    "stale_alerts_skipped": getattr(rs, "stale_skipped", 0),
-                    "elapsed_sec": round(rs.elapsed_sec, 1),
-                }
-            if warmup:
-                armed_at = time.time()
-            if armed_at is not None:
-                rec["armed_at_ts"] = armed_at
-                rec["armed_at"] = datetime.fromtimestamp(armed_at, timezone.utc).isoformat(timespec="seconds")
+            if scan or refresh:
+                rs = refresh_tf(tf, settings=settings, notify=notify and not history,
+                                symbols=syms)
+                summary["steps"][f"v3_{tf}"] = rs
+                rec["zones"] = rs["zones"]
+                rec["zones_by_group"] = rs["by_group"]
+                if rs.get("errors"):
+                    rec["errors"] = rs["errors"][:3]
             rec.update(ok=True, elapsed_sec=round(time.time() - t_tf, 1))
             if fetch and not history:
                 _write_tf_run(settings, tf, rec)
+        if refresh and not history:
+            summary["steps"]["track_open"] = track_open(settings=settings, skip_tfs=tf_list, notify=notify)
         if did_fetch:
             summary["steps"]["fetch"] = agg
-        if fetch and settings.enable_fetch and "D" not in settings.pipeline_tfs:
-            # D not scanned on this host → still keep D1 candles for the H4/D1 bias
-            d1 = maybe_fetch_d1(settings, group_list)
-            if d1 is not None:
-                summary["steps"]["fetch_d1_bias"] = d1
         summary["ok"] = True
     except Exception as e:
         summary["error"] = f"{type(e).__name__}: {e}"[:500]
@@ -329,7 +241,7 @@ def run_pipeline(
         _STATE["current"] = None
         _LOCK.release()
     print(
-        f"[pipeline] {trigger} tfs={','.join(tf_list)} ok={summary['ok']} {summary['elapsed_sec']}s "
+        f"[pipeline] v3 {trigger} tfs={','.join(tf_list)} ok={summary['ok']} {summary['elapsed_sec']}s "
         f"fetch={summary['steps'].get('fetch', {}).get('ok')}",
         flush=True,
     )

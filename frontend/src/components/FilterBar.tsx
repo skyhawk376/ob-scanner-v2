@@ -15,7 +15,7 @@ const GROUPS: { id: GroupId; label: string }[] = [
   { id: 'METAUX', label: 'Métaux' },
   { id: 'FOREX', label: 'Forex' },
   { id: 'CRYPTO', label: 'Crypto' },
-  // Filtre B (prod): Énergie + NQ100 retirés du scanner
+  { id: 'NQ100', label: 'NQ100' },
 ]
 
 function Chip({
@@ -75,9 +75,9 @@ export function FilterBar({
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           className="mr-1 rounded border border-emerald-700/60 bg-emerald-900/30 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300"
-          title="Filtre B : ≥4★ · Métaux/Forex/Crypto · TF M5→Weekly · entrée mid · TP +2R (RR 1:2) · tendance H4/D1 affichée (info) · OB vierges"
+          title="v3 Kasper : OB + FVG obligatoire · ≥4★ (Tendance, Liquidité prise, Jamais touché, Fibo 0.5, Session) · entrée sur bougie de retournement en TF inférieure · SL au-delà de l'OB · TP +2R · SL au point d'entrée à +1R"
         >
-          Filtre B
+          v3 Kasper
         </span>
         <span className="mr-1 text-[11px] uppercase tracking-wider text-zinc-500">Groupes</span>
         {GROUPS.map((g) => (

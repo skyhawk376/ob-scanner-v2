@@ -11,10 +11,10 @@ function fmt(n: number | null | undefined, digits = 4): string {
 }
 
 const STAR_LABELS: { key: keyof Zone; label: string }[] = [
-  { key: 'star1_fvg', label: 'FVG' },
   { key: 'star2_trend', label: 'Tendance' },
-  { key: 'star3_fib', label: 'Fib 0.5' },
-  { key: 'star4_liquidity', label: 'Liquidité' },
+  { key: 'star4_liquidity', label: 'Liquidité prise' },
+  { key: 'star_virgin', label: 'Jamais touché' },
+  { key: 'star3_fib', label: 'Fibo 0.5' },
   { key: 'star5_session', label: 'Session' },
 ]
 
@@ -133,7 +133,6 @@ export function ZoneDetailModal({
                       </div>
                       <div className={`text-[10px] ${on ? 'text-amber-200/80' : 'text-zinc-600'}`}>
                         {label}
-                        {key === 'star5_session' && zone.star5_pending ? '…' : ''}
                       </div>
                     </div>
                   )
@@ -147,14 +146,15 @@ export function ZoneDetailModal({
               </h3>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <Metric
-                  label="Entrée (milieu OB)"
+                  label={zone.trade_fill_at ? `Entrée (${zone.trade_trigger ?? ''} ${zone.ltf ?? ''})` : 'Bord proximal (entrée sur bougie LTF)'}
                   value={fmt(zone.entry)}
                   color="text-blue-300"
                 />
-                <Metric label="SL" value={fmt(zone.sl)} color="text-orange-300" />
-                <Metric label={TP_LABEL} value={fmt(tp1r)} color="text-zinc-200" />
-                <Metric label="TP2 (+2R)" value={fmt(zone.tp2)} color="text-zinc-200" />
+                <Metric label="SL (au-delà de l'OB)" value={fmt(zone.sl)} color="text-orange-300" />
+                <Metric label={TP_LABEL} value={fmt(zone.trade_tp ?? tp1r)} color="text-zinc-200" />
                 <Metric label="RR" value={tp1r != null ? RR_LABEL : '—'} color="text-zinc-200" />
+                <Metric label="Statut" value={zone.status ?? '—'} color="text-zinc-200" />
+                <Metric label="Résultat" value={zone.trade_r != null ? `${zone.trade_r > 0 ? '+' : ''}${zone.trade_r.toFixed(2)}R net` : '—'} color="text-zinc-200" />
               </div>
             </section>
 
@@ -167,9 +167,7 @@ export function ZoneDetailModal({
                 <Metric label="Distance" value={`${zone.distance_atr.toFixed(2)} ATR`} />
                 <Metric
                   label="Session"
-                  value={
-                    zone.session_label ?? (zone.star5_pending ? 'à l’impact' : 'hors session')
-                  }
+                  value={zone.session_label ?? 'hors session'}
                 />
                 <Metric label="Tendance" value={zone.trend || '—'} />
                 <Metric label="Dernier cours" value={fmt(zone.last_close)} />

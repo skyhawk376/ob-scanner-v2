@@ -31,11 +31,13 @@ mcp = MCPServer(
     name="ob-scanner",
     title="OB 5-star Scanner",
     instructions=(
-        "Scanner Order Blocks style Kasper (Europe/Paris). "
+        "Scanner Order Blocks v3 « Kasper » (Europe/Paris) : OB + FVG obligatoire, 5 étoiles "
+        "(Tendance, Liquidité prise, Jamais touché, Fibo 0.5, Session), ≥4★, entrée sur bougie de "
+        "retournement en TF inférieure, SL au-delà de l'OB, TP +2R, SL au point d'entrée à +1R. "
         "Outils en lecture / scan local uniquement — aucun passage d'ordre. "
         "Préférez list_zones puis get_zone; XAUUSD est prioritaire."
     ),
-    version="0.5.0",
+    version="3.0.0",
 )
 
 
@@ -47,7 +49,7 @@ def list_zones(
     status: str | None = None,
     limit: int = 50,
 ) -> str:
-    """Filters: tf=M5|M15|M30|H1|H4|D|W, group=NQ100|METAUX|ENERGIE|FOREX|CRYPTO, status=active|touchee|reaction|echec|expiree."""
+    """Filters: tf=M5|M15|M30|H1|H4|D|W, group=NQ100|METAUX|ENERGIE|FOREX|CRYPTO, status=active|touchee|en_position|tp|sl|be|invalidee|expiree."""
     return tool_list_zones(tf=tf, group=group, min_stars=min_stars, status=status, limit=limit)
 
 
@@ -61,7 +63,7 @@ def scan_now(tf: str = "H1", group: str | None = None, min_stars: int = 4) -> st
     return tool_scan_now(tf=tf, group=group, min_stars=min_stars)
 
 
-@mcp.tool(description="Statistiques de cycle de vie (taux de réaction, par groupe/TF/score).")
+@mcp.tool(description="Statistiques v3 : trades réalistes (R net de frais), WR, par TF/groupe, entrées/jour, backtest.")
 def get_stats(tf: str | None = None) -> str:
     return tool_get_stats(tf=tf)
 

@@ -14,6 +14,8 @@ from .base import CandleProvider, CandlesResult
 # Intraday downloads are sized from `limit` (see _period_for) instead of always
 # pulling the max range: same bars after the `limit` slice, ~10x fewer bytes.
 TF_YF: dict[str, dict[str, Any]] = {
+    # 1m: Yahoo serves only the last ~7 days (v3 trigger for M5 zones)
+    "M1": {"interval": "1m", "period": "5d", "native": True, "bar_min": 1, "max_days": 6, "min_days": 1},
     "M5": {"interval": "5m", "period": "59d", "native": True, "bar_min": 5, "max_days": 59},
     "M15": {"interval": "15m", "period": "59d", "native": True, "bar_min": 15, "max_days": 59},
     "M30": {"interval": "30m", "period": "59d", "native": True, "bar_min": 30, "max_days": 59},

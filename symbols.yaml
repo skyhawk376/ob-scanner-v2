@@ -1,7 +1,7 @@
 # Liste par défaut (~115 instruments). Mapping par source : yf = yfinance, oanda = OANDA v20, bn = Binance spot.
 # NQ100 : composition à réconcilier avec la liste officielle Nasdaq-100 au moment du build (elle change chaque trimestre / en décembre).
 NQ100:
-  index: [{id: NAS100, yf: "^NDX", oanda: NAS100_USD}]
+  index: [{id: NAS100, yf: "NQ=F", oanda: NAS100_USD}]   # NQ=F futures ~23h/24 (1m dispo) ; ^NDX = cash 15h30-22h
   stocks: [AAPL, MSFT, NVDA, AMZN, GOOGL, META, AVGO, TSLA, NFLX, COST,
            AMD, PLTR, ASML, CSCO, TMUS, AZN, LIN, PEP, INTU, ISRG,
            TXN, QCOM, AMGN, ADBE, BKNG, AMAT, MU, LRCX, KLAC, INTC,

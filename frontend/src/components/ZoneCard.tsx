@@ -4,9 +4,9 @@ import { MiniChart } from './MiniChart'
 import { RR_LABEL, TP_LABEL, TP_R } from '../lib/strategy'
 
 function Stars({ z }: { z: Zone }) {
-  const flags = [z.star1_fvg, z.star2_trend, z.star3_fib, z.star4_liquidity, z.star5_session]
+  const flags = [z.star2_trend, z.star4_liquidity, z.star_virgin ?? z.fresh, z.star3_fib, z.star5_session]
   return (
-    <div className="flex gap-0.5" title="★1 FVG · ★2 Tendance · ★3 Fib 0.5 · ★4 Liquidité · ★5 Session">
+    <div className="flex gap-0.5" title="Tendance · Liquidité prise · Jamais touché · Fibo 0.5 · Session (FVG obligatoire)">
       {flags.map((on, i) => (
         <span key={i} className={on ? 'text-amber-400' : 'text-zinc-600'}>
           {on ? '★' : '☆'}
@@ -83,7 +83,7 @@ export function ZoneCard({ zone, onOpen }: { zone: Zone; onOpen?: (z: Zone) => v
           </div>
           <div className="mt-0.5 text-[11px] text-zinc-500">
             score {zone.score}/5 · {zone.distance_atr.toFixed(2)} ATR ·{' '}
-            {zone.session_label ?? (zone.star5_pending ? 'session à l’impact' : 'hors session')}
+            {zone.status === 'touchee' ? 'touchée · attente bougie ' + (zone.ltf ?? '') : zone.session_label ?? 'hors session'}
           </div>
         </div>
         <Stars z={zone} />
@@ -93,7 +93,7 @@ export function ZoneCard({ zone, onOpen }: { zone: Zone; onOpen?: (z: Zone) => v
 
       <div className="grid grid-cols-4 gap-1 border-t border-zinc-800/80 px-3 py-2 text-[11px]">
         <div>
-          <div className="text-zinc-500">Entrée (milieu OB)</div>
+          <div className="text-zinc-500" title="Entrée = clôture de la bougie de retournement en TF inférieure">Zone (entrée LTF)</div>
           <div className="font-medium text-blue-300">{fmt(zone.entry)}</div>
         </div>
         <div>

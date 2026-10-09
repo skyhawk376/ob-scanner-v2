@@ -1,4 +1,4 @@
-import type { CacheStatus, Candle, HealthResponse, McpToolsResponse, ScanResponse, StatsResponse, Timeframe, Zone } from './types'
+import type { CacheStatus, Candle, HealthResponse, McpToolsResponse, ScanResponse, Timeframe, V3Stats, Zone } from './types'
 
 const _envApi = import.meta.env.VITE_API_URL as string | undefined
 // Dev: Vite proxies /api → :8000. Prod (same origin): call API at root ('').
@@ -104,7 +104,7 @@ export async function refreshStatuses(opts: {
   return postJson(`/refresh?${q.toString()}`)
 }
 
-export async function fetchStats(tf?: Timeframe): Promise<StatsResponse> {
+export async function fetchStats(tf?: Timeframe): Promise<V3Stats> {
   const q = tf ? `?tf=${tf}` : ''
   return getJson(`/stats${q}`)
 }

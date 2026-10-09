@@ -10,8 +10,8 @@ import { fetchCacheStatus, fetchZones, health, runScan } from './lib/api'
 import { filterZones, sortZones } from './lib/sortZones'
 import type { GroupId, TabId, Timeframe, Zone } from './lib/types'
 
-// Filtre B (prod): METAUX / FOREX / CRYPTO only, ≥4★ (backend STRATEGY_LOCK enforces it too)
-const DEFAULT_GROUPS: GroupId[] = ['METAUX', 'FOREX', 'CRYPTO']
+// v3 Kasper: Métaux / Forex / Crypto / NQ100, ≥4★
+const DEFAULT_GROUPS: GroupId[] = ['METAUX', 'FOREX', 'CRYPTO', 'NQ100']
 
 function formatCacheAge(ageSec: number | null | undefined, lastCandle?: string | null): string | null {
   if (ageSec == null && !lastCandle) return null

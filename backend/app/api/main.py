@@ -13,10 +13,10 @@ from fastapi.staticfiles import StaticFiles
 from ..core.cache import cache_freshness, read_cache
 from ..core.config import get_settings
 from ..core.fetcher import fetch_all
-from ..core.monitor import compute_stats, refresh_statuses
-from ..core.scanner import load_stored_zones, run_scan
 from ..core.symbols import count_by_group, load_instruments
-from ..core.telegram import run_digest, send_telegram
+from ..core.telegram import send_telegram
+from ..v3 import params as V3P
+from ..v3.service import compute_stats, list_zones as v3_list_zones, refresh_tf, universe
 from ..core.timeframes import ALL_TFS, normalize_tf
 from ..providers.registry import ProviderHub
 
@@ -34,9 +34,9 @@ def _tf_opt(tf: str | None) -> str | None:
     return t
 
 app = FastAPI(
-    title="OB 5-star Scanner",
-    version="0.5.0",
-    description="Phase 5 — MCP + lifecycle + Telegram.",
+    title="OB Scanner v3 Kasper",
+    version="3.0.0",
+    description="v3 Kasper — OB + FVG, 5 étoiles, entrée sur bougie de retournement LTF, BE à +1R.",
 )
 app.add_middleware(
     CORSMiddleware,
@@ -87,37 +87,12 @@ def _maybe_scheduler():
                 id="pipeline",
                 replace_existing=True,
             )
-        else:
-            # No live fetch: keep the old lightweight lifecycle monitor.
-            sched.add_job(
-                lambda: refresh_statuses(tf="H1", notify=True, force_dry_telegram=None),
-                "interval",
-                minutes=5,
-                id="monitor_h1",
-                replace_existing=True,
-            )
-        sched.add_job(
-            lambda: run_pipeline(
-                trigger="history", fetch=False, scan=False, history=True, notify=False
-            ),
-            CronTrigger(
-                hour=settings.history_refresh_hour,
-                minute=settings.history_refresh_minute,
-                timezone=settings.tz,
-            ),
-            id="history_daily",
-            replace_existing=True,
-        )
+        from ..v3.digest import run_digest
+
         sched.add_job(
             lambda: run_digest(force_dry=None, label="07:45 pré-Londres"),
             CronTrigger(hour=7, minute=45, timezone=settings.tz),
             id="digest_london",
-            replace_existing=True,
-        )
-        sched.add_job(
-            lambda: run_digest(force_dry=None, label="14:15 pré-NY"),
-            CronTrigger(hour=14, minute=15, timezone=settings.tz),
-            id="digest_ny",
             replace_existing=True,
         )
         if settings.enable_fetch:
@@ -172,14 +147,20 @@ def _strategy_groups_or_400(group: str | None) -> list[str] | None:
 def _strategy_info() -> dict:
     s = get_settings()
     return {
-        "name": "Filtre B",
-        "locked": bool(s.strategy_lock),
-        "groups": s.strategy_groups,
-        "min_score": int(s.default_min_score),
-        "entry_mode": (s.entry_mode or "mid").strip().lower(),
-        "reaction_r": float(s.reaction_r),
-        "soft_reaction": bool(s.enable_soft_reaction),
-        "virgin_only": True,
+        "name": "v3 Kasper",
+        "engine": "v3",
+        "groups": s.v3_group_list,
+        "nq100": "NAS100 (Yahoo NQ=F)" + (" + actions" if s.v3_nq100_stocks else ""),
+        "min_score": V3P.MIN_STARS,
+        "stars": ["Tendance (Dow)", "Liquidité prise", "OB jamais touché", "Fibo 0.5", "Session 08–21h Paris"],
+        "fvg_required": True,
+        "entry": "bougie de retournement LTF (englobante / marteau), entrée à la clôture",
+        "lower_tf": V3P.LOWER_TF,
+        "window_bars": V3P.WINDOW_BARS,
+        "sl": f"bord distal ± {V3P.SL_BUFFER_ATR} ATR",
+        "tp_r": V3P.TP_R,
+        "be_at_r": V3P.BE_AT_R,
+        "time_stop": None,
         "tfs": s.pipeline_tfs if s.enable_fetch else list(ALL_TFS),
         "tf_schedule_min": s.tf_cadence,
         "alert_tfs": s.alert_tf_list,
@@ -201,7 +182,7 @@ def _tf_status(settings) -> dict:
             "fetch_ok": r.get("fetch_ok"),
             "fetch_fail": r.get("fetch_fail"),
             "alerts": settings.tf_alerts_enabled(tf),
-            "armed_at": r.get("armed_at"),
+            "zones_by_group": r.get("zones_by_group"),
         }
     return out
 
@@ -251,7 +232,7 @@ def health():
         "scheduler": bool(settings.enable_scheduler),
         "scheduler_info": _scheduler_info(),
         "fetch_enabled": bool(settings.enable_fetch),
-        "entry_mode": (settings.entry_mode or "mid").strip().lower(),
+        "engine": "v3",
         "strategy": _strategy_info(),
         "alert_tfs": settings.alert_tf_list,
         "tf_status": _tf_status(settings),
@@ -353,6 +334,12 @@ def cache_status(tf: TfParam = Query("H1")):
     return cache_freshness(settings.cache_dir, tf)
 
 
+def _v3_groups(group: str | None) -> list[str] | None:
+    if not group or group.strip().upper() == "ALL":
+        return None
+    return [g.strip().upper() for g in group.split(",") if g.strip()]
+
+
 @app.post("/scan")
 def scan_endpoint(
     tf: TfParam = Query("H1"),
@@ -361,43 +348,24 @@ def scan_endpoint(
     min_score: int = Query(4, ge=1, le=5),
     include_mitigated: bool = Query(False),
 ):
-    groups = _strategy_groups_or_400(group)
-    min_score = get_settings().clamp_min_score(min_score)
-    syms = [s.strip() for s in symbols.split(",")] if symbols else None
-    summary = run_scan(
-        tfs=[tf],
-        groups=groups,
-        symbols=syms,
-        min_score=min_score,
-        require_fresh=not include_mitigated,
-        persist=True,
-    )
-    refresh_meta = None
-    try:
-        rsum = refresh_statuses(
-            tf=tf,
-            history=False,
-            groups=groups,
-            min_score=min_score,
-            notify=False,
-            force_dry_telegram=True,
-        )
-        refresh_meta = {
-            "mode": rsum.mode,
-            "updated": rsum.updated,
-            "by_status": rsum.by_status,
-            "elapsed_sec": round(rsum.elapsed_sec, 2),
-        }
-    except Exception as e:
-        refresh_meta = {"error": str(e)[:300]}
+    """v3 refresh of one TF from the cache (same code + same alert gating as the scheduler)."""
+    groups = _v3_groups(group)
+    syms = [i.id for i in universe() if not groups or i.group in groups]
+    if symbols:
+        want = {x.strip().upper() for x in symbols.split(",") if x.strip()}
+        syms = [x for x in syms if x in want]
+    rs = refresh_tf(tf, symbols=syms, fetch_ltf=False)
+    zones = v3_list_zones(tf=tf, group=groups, min_score=max(min_score, V3P.MIN_STARS), active_only=True, limit=300)
+    if symbols:
+        zones = [z for z in zones if z["symbol"] in syms]
     return {
         "tf": tf,
-        "elapsed_sec": round(summary.elapsed_sec, 2),
-        "n_zones": len(summary.zones),
-        "symbols_scanned": len(summary.per_symbol),
-        "symbols_ok": sum(1 for s in summary.per_symbol if s.ok),
-        "zones": [z.to_dict() for z in summary.zones],
-        "refresh": refresh_meta,
+        "elapsed_sec": rs["elapsed_sec"],
+        "n_zones": len(zones),
+        "symbols_scanned": len(syms),
+        "symbols_ok": len(syms) - len(rs.get("errors") or []),
+        "zones": zones,
+        "refresh": {"mode": "v3", "by_status": {}, "elapsed_sec": rs["elapsed_sec"]},
     }
 
 
@@ -406,22 +374,21 @@ def zones_endpoint(
     tf: str | None = Query(None),
     group: str | None = Query(None),
     symbol: str | None = Query(None),
-    status: str | None = Query(None, description="active|touchee|reaction|echec|expiree"),
+    status: str | None = Query(None, description="active|touchee|en_position|tp|sl|be|invalidee|expiree"),
     statuses: str | None = Query(None, description="comma-separated statuses"),
     min_score: int = Query(4, ge=1, le=5),
     limit: int = Query(200, ge=1, le=5000),
     active_only: bool = Query(False),
 ):
-    st_list = [s.strip() for s in statuses.split(",")] if statuses else None
-    zones = load_stored_zones(
+    st_list = [x.strip() for x in statuses.split(",")] if statuses else ([status] if status else None)
+    zones = v3_list_zones(
         tf=_tf_opt(tf),
-        min_score=min_score,
+        group=_v3_groups(group),
         symbol=symbol,
-        group=group,
-        status=status,
         statuses=st_list,
-        limit=limit,
+        min_score=max(min_score, V3P.MIN_STARS),
         active_only=active_only,
+        limit=limit,
     )
     return {"n": len(zones), "zones": zones}
 
@@ -456,34 +423,16 @@ def candles_endpoint(
 @app.post("/refresh")
 def refresh_endpoint(
     tf: TfParam = Query("H1"),
-    history: bool = Query(
-        False,
-        description="Re-detect including mitigated and classify lifecycle (for Touches/Réaction)",
-    ),
+    history: bool = Query(False),
     group: str | None = Query(None),
     min_score: int = Query(4, ge=1, le=5),
     notify: bool = Query(True),
     dry_run: bool = Query(True),
 ):
-    groups = _strategy_groups_or_400(group)
-    min_score = get_settings().clamp_min_score(min_score)
-    summary = refresh_statuses(
-        tf=tf,
-        history=history,
-        groups=groups,
-        min_score=min_score,
-        notify=notify,
-        force_dry_telegram=dry_run,
-    )
-    return {
-        "mode": summary.mode,
-        "elapsed_sec": round(summary.elapsed_sec, 2),
-        "n_zones": summary.n_zones,
-        "updated": summary.updated,
-        "by_status": summary.by_status,
-        "transitions": len(summary.transitions),
-        "notifications": summary.notifications,
-    }
+    """v3 refresh of one TF (cache only). Alerts follow the normal v3 gating."""
+    rs = refresh_tf(tf, fetch_ltf=False)
+    return {"mode": "v3", "elapsed_sec": rs["elapsed_sec"], "n_zones": rs["zones"], "by_status": {},
+            "updated": rs["zones"], "transitions": 0, "notifications": len(rs["sent"])}
 
 
 @app.get("/stats")
@@ -493,6 +442,8 @@ def stats_endpoint(tf: str | None = Query(None)):
 
 @app.post("/telegram/digest")
 def telegram_digest(dry_run: bool = Query(True), label: str = Query("manual")):
+    from ..v3.digest import run_digest
+
     return run_digest(force_dry=dry_run, label=label)
 
 

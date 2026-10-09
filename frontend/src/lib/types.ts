@@ -63,6 +63,43 @@ export interface Zone {
   trade_exit_at?: string | null
   trade_model?: string | null
   trade_tp?: number | null
+  /** v3 Kasper */
+  group?: string | null
+  state?: string
+  stars?: { tendance: boolean; liquidite: boolean; vierge: boolean; fibo: boolean; session: boolean }
+  star_virgin?: boolean
+  n_touch?: number
+  ltf?: string | null
+  trade_trigger?: string | null
+  trade_be_at?: string | null
+  trade_r_gross?: number | null
+  invalidated_at?: string | null
+}
+
+export interface V3Summary {
+  n: number
+  wins: number
+  wr: number | null
+  avg_r: number | null
+  sum_r: number
+  exits: Record<string, number>
+  entries?: number
+  open?: number
+  entries_per_day?: number | null
+  by_tf?: Record<string, V3Summary>
+  by_group?: Record<string, V3Summary>
+}
+
+export interface V3Stats {
+  engine: string
+  method: string
+  go_live: string | null
+  n_zones: number
+  by_state: Record<string, number>
+  cache: V3Summary
+  live: V3Summary
+  notifications: Record<string, number>
+  backtest?: any
 }
 
 export interface TradeSummary {

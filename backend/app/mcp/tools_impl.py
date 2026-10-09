@@ -7,9 +7,8 @@ from typing import Any
 
 from ..core.cache import read_cache
 from ..core.config import get_settings
-from ..core.monitor import compute_stats
-from ..core.scanner import load_stored_zones, run_scan
-from ..core.store import connect
+from ..v3 import store as v3store
+from ..v3.service import compute_stats, list_zones as v3_list_zones, refresh_tf, to_api, universe
 from .chart_svg import write_zone_chart
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -26,67 +25,38 @@ def tool_list_zones(
     status: str | None = None,
     limit: int = 50,
 ) -> str:
-    st = None
-    sts = None
-    if status:
-        parts = [s.strip() for s in status.split(",") if s.strip()]
-        if len(parts) == 1:
-            st = parts[0]
-        elif len(parts) > 1:
-            sts = parts
-    zones = load_stored_zones(
-        tf=tf.upper() if tf else None,
+    """v3 zones. status: active|touchee|en_position|tp|sl|be|invalidee|expiree (comma list ok)."""
+    from ..core.timeframes import normalize_tf
+
+    sts = [x.strip() for x in status.split(",") if x.strip()] if status else None
+    zones = v3_list_zones(
+        tf=normalize_tf(tf) if tf else None,
         group=group,
-        min_score=min_stars,
-        status=st,
+        min_score=max(4, int(min_stars or 4)),
         statuses=sts,
+        active_only=not sts,
         limit=limit,
     )
-    # slim payload for LLM context
-    slim = [
-        {
-            "id": z.get("id"),
-            "symbol": z.get("symbol"),
-            "tf": z.get("tf"),
-            "direction": z.get("direction"),
-            "score": z.get("score"),
-            "status": z.get("status", "active"),
-            "low": z.get("low"),
-            "high": z.get("high"),
-            "entry": z.get("entry"),
-            "sl": z.get("sl"),
-            "tp1": z.get("tp1"),
-            "rr_tp1": z.get("rr_tp1"),
-            "distance_atr": z.get("distance_atr"),
-            "session_label": z.get("session_label") or z.get("touched_session"),
-            "touched_at": z.get("touched_at"),
-            "stars": {
-                "fvg": z.get("star1_fvg"),
-                "trend": z.get("star2_trend"),
-                "fib": z.get("star3_fib"),
-                "liquidity": z.get("star4_liquidity"),
-                "session": z.get("star5_session"),
-            },
-        }
-        for z in zones
-    ]
-    return _json({"n": len(slim), "zones": slim})
+    keys = ("id", "symbol", "group", "tf", "direction", "score", "stars", "status", "low", "high",
+            "entry", "sl", "tp2", "distance_atr", "touched_at", "ltf", "trade_trigger", "trade_exit",
+            "trade_r", "trade_fill_at", "trade_be_at", "trade_exit_at")
+    slim = [{k: z.get(k) for k in keys} for z in zones]
+    return _json({"engine": "v3", "n": len(slim), "zones": slim})
 
 
 def tool_get_zone(zone_id: str) -> str:
     settings = get_settings()
-    conn = connect(settings.db_path)
+    conn = v3store.connect(settings.db_path)
     try:
-        row = conn.execute("SELECT payload FROM zones WHERE id=?", (zone_id,)).fetchone()
+        row = conn.execute("SELECT * FROM v3_zones WHERE id=?", (zone_id,)).fetchone()
         if not row:
-            # try LIKE on symbol|tf prefix
-            row = conn.execute(
-                "SELECT payload FROM zones WHERE id LIKE ? LIMIT 1",
-                (f"%{zone_id}%",),
-            ).fetchone()
+            row = conn.execute("SELECT * FROM v3_zones WHERE id LIKE ? ORDER BY ts_ob DESC LIMIT 1",
+                               (f"%{zone_id}%",)).fetchone()
         if not row:
             return _json({"error": f"zone not found: {zone_id}"})
-        return row["payload"] if isinstance(row["payload"], str) else _json(dict(row))
+        z = to_api(row)
+        z["result"] = json.loads(row["result"])
+        return _json(z)
     finally:
         conn.close()
 
@@ -97,37 +67,20 @@ def tool_scan_now(tf: str = "H1", group: str | None = None, min_stars: int = 4) 
     tf = normalize_tf(tf) or tf.upper()
     if tf not in ALL_TFS:
         return _json({"error": f"unsupported tf {tf}"})
-    groups = get_settings().resolved_scan_groups(group)
-    summary = run_scan(
-        tfs=[tf],
-        groups=groups,
-        min_score=min_stars,
-        require_fresh=True,
-        persist=True,
-    )
-    return _json(
-        {
-            "tf": tf,
-            "elapsed_sec": round(summary.elapsed_sec, 2),
-            "n_zones": len(summary.zones),
-            "symbols_ok": sum(1 for s in summary.per_symbol if s.ok),
-            "top": [
-                {
-                    "id": z.id,
-                    "symbol": z.symbol,
-                    "direction": z.direction,
-                    "score": z.score,
-                    "distance_atr": z.distance_atr,
-                }
-                for z in summary.zones[:15]
-            ],
-        }
-    )
+    gl = [g.strip().upper() for g in group.split(",")] if group else None
+    syms = [i.id for i in universe() if not gl or i.group in gl]
+    rs = refresh_tf(tf, symbols=syms, fetch_ltf=False)
+    zones = v3_list_zones(tf=tf, group=gl, min_score=max(4, min_stars), active_only=True, limit=15)
+    return _json({
+        "tf": tf, "elapsed_sec": rs["elapsed_sec"], "n_zones": rs["zones"], "by_group": rs["by_group"],
+        "top": [{k: z[k] for k in ("id", "symbol", "direction", "score", "status", "distance_atr")} for z in zones],
+    })
 
 
 def tool_get_stats(tf: str | None = None) -> str:
-    stats = compute_stats(tf=tf.upper() if tf else None)
-    return _json(stats)
+    from ..core.timeframes import normalize_tf
+
+    return _json(compute_stats(tf=normalize_tf(tf) if tf else None))
 
 
 def tool_get_candles(symbol: str, tf: str = "H1", n: int = 100) -> str:

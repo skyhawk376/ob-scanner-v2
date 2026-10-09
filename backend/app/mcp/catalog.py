@@ -19,7 +19,7 @@ TOOL_CATALOG = [
     {
         "name": "get_stats",
         "args": ["tf?"],
-        "description": "Stats de cycle de vie (taux de réaction, par groupe/TF).",
+        "description": "Stats v3 (R net, WR, par TF/groupe, entrées/jour).",
     },
     {
         "name": "get_candles",

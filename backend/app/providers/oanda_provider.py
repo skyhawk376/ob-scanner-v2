@@ -13,6 +13,7 @@ from .base import CandleProvider, CandlesResult
 
 # OANDA granularity codes
 TF_OANDA: dict[str, str] = {
+    "M1": "M1",
     "M5": "M5",
     "M15": "M15",
     "M30": "M30",

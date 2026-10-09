@@ -1,4 +1,4 @@
-# OB scanner v2 — always-on (multi-TF M5…W live fetch + lifecycle refresh)
+# OB scanner — always-on, engine v3 « Kasper » (STRATEGY_V3.md): multi-TF M5…W live fetch + v3 lifecycle
 # Deploy: see DEPLOY_FLY.md. Rollback = PythonAnywhere v2 stays untouched.
 app = "ob-scanner-v2"
 primary_region = "cdg"
@@ -19,10 +19,13 @@ kill_timeout = "30s"
   # scheduler ticks every 5 min, H1 processed first.
   FETCH_TFS = "M5,M15,M30,H1,H4,D,W"
   TF_SCHEDULE = "M5:5,M15:15,M30:30,H1:15,H4:60,D:120,W:360"
-  CACHE_MAX_BARS = "M5:6000,M15:4000,M30:3000"
+  CACHE_MAX_BARS = "M1:3000,M5:6000,M15:4000,M30:3000"
+  # v3 universe (NQ100 = NAS100 index via Yahoo NQ=F; V3_NQ100_STOCKS=true adds the stocks)
+  V3_GROUPS = "METAUX,FOREX,CRYPTO,NQ100"
+  V3_NQ100_STOCKS = "false"
   # Telegram alerts per TF (narrow e.g. to "H1" without code change). New TFs are armed
   # after a silent warm-up run: no alerts for zones touched before go-live.
-  ALERT_TFS = "M5,M15,M30,H1,H4,D1,W1"
+  ALERT_TFS = "M5,M15,M30,H1,H4,D,W"
   FETCH_LIMIT = "300"
   TELEGRAM_DRY_RUN = "true"
   ENABLE_SOFT_REACTION = "false"

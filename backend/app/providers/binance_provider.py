@@ -12,6 +12,7 @@ from ..core.config import Settings, get_settings
 from .base import CandleProvider, CandlesResult
 
 TF_BINANCE: dict[str, str] = {
+    "M1": "1m",
     "M5": "5m",
     "M15": "15m",
     "M30": "30m",
