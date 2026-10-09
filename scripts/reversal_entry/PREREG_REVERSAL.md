@@ -42,3 +42,14 @@ A family pick passes if **all** hold on TEST: (1) net avg R > 0 with 95 % CI (no
 minute in [t₀, t₀+W], same SL price, TP 2R, same hold, same costs); (3) net avg R > T0 (same hold).
 Secondary (descriptive only, not part of the bar): same picks restricted to commission/risk ≤ 0.10 (the R3 cost filter);
 breakdown by TF and asset group; alerts/day.
+
+## Addendum (2026-10-09 ~18:25 Paris, still before any outcome) — T5 "sweep & reclaim" (user request)
+* Sweep: after t₀, an M1 low < zone SL (price trades beyond the distal edge + buffer) within t₀ + W. The distal-close
+  invalidation rule does NOT apply to T5 (closing beyond the zone is part of the setup).
+* SL = lowest low from t₀ up to the entry minute − 0.05 ATR (beyond the sweep extreme). TP = +2R from actual fill. Hold 1h / 3h.
+* **T5a** (return to original entry): a buy **stop** at the original prod entry (mid / OB open — price comes back from below,
+  so a resting order above market is a stop), live from sweep minute + 3 min, must fill by t₀ + W. 2 configs (W/hold 1h, 3h).
+* **T5b** (close back inside): first trigger-TF candle (same or ltf) closing after the sweep minute with close > bot;
+  market at close + 3 min; fill must be ≤ t₀ + W + 3 min. 4 configs (TF{same,ltf} × {1h,3h}).
+* Grid total = 42 configs (+2 info). T5 is a family for the selection rule (best TRAIN net with ≥ 300 trades; if no T5 config
+  reaches 300 TRAIN trades, the one with most trades is reported, flagged as under-powered). Same success bar.
