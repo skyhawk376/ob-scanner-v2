@@ -1,0 +1,9 @@
+{
+ "T1": "T1|same|zone|3h",
+ "T2": "T2|same|zone|3h",
+ "T3": "T3|retest|zone|3h",
+ "T4": "T4|same|zone|3h",
+ "T5": "T5a|m1|sweep|3h",
+ "T6_reversal_part": "T4|same|zone|3h",
+ "best_family": "T3"
+}
