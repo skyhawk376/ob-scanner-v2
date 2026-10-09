@@ -1,0 +1,29 @@
+ tf    q         cfg  zones_test  eligible  train_n  train_wr  train_net     n  per_day    wr  gross    net     lo     hi    pf  maxdd  hold_min  rand_mean  rand_p95  wr70  profitable
+ M5 base E3|tp0.3|3h         301     False      385     0.579     -0.315 202.0    0.620 0.624 -0.103 -0.187 -0.273 -0.100 0.457 38.680    13.168     -0.240    -0.009 False       False
+ M5   Q1 E2|tp0.3|3h          90     False       82     0.598     -0.202  39.0    0.120 0.718  0.036  0.012 -0.173  0.197 1.047  3.918    12.436     -0.042     0.095  True       False
+ M5   Q2 E3|tp0.5|1h          32     False       24     0.583     -0.438  14.0    0.043 0.714  0.177  0.025 -0.344  0.395 1.084  1.791    10.286     -0.328     0.155  True       False
+ M5   Q3 E3|tp0.5|3h          17     False       21     0.524     -0.348  12.0    0.037 0.583 -0.037 -0.084 -0.469  0.300 0.751  3.122    11.333     -0.107     0.298 False       False
+ M5   Q4         NaN          12     False       18       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+ M5   Q5         NaN           2     False        3       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+M15 base E2|tp0.3|3h          98     False       72     0.611     -0.126  40.0    0.123 0.725  0.010 -0.001 -0.177  0.175 0.995  2.665    41.050      0.021     0.136  True       False
+M15   Q1 E2|tp0.3|3h          37     False       25     0.680      0.004  18.0    0.055 0.667 -0.069 -0.079 -0.352  0.194 0.717  2.588    36.111      0.006     0.180 False       False
+M15   Q2 E1|tp0.3|1h           6     False       23     0.565     -0.313   6.0    0.018 0.500  0.026 -0.236 -0.732  0.259 0.383  2.018     1.333     -0.457     0.176 False       False
+M15   Q3         NaN           5     False       12       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+M15   Q4         NaN           1     False        7       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+M15   Q5         NaN           0     False        1       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+M30 base E1|tp0.3|1h          35     False       99     0.646     -0.155  28.0    0.086 0.679 -0.037 -0.063 -0.287  0.160 0.775  3.155    10.464     -0.044     0.113 False       False
+M30   Q1 E1|tp0.3|1h          11     False       33     0.636     -0.167  10.0    0.031 0.700  0.034  0.007 -0.351  0.365 1.033  1.208    16.700     -0.035     0.205  True       False
+M30   Q2         NaN           2     False       10       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+M30   Q3         NaN           2     False        7       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+M30   Q4         NaN           0     False        3       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+M30   Q5         NaN           0     False        1       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+ H1 base E1|tp0.3|3h          33     False       47     0.702     -0.075  29.0    0.089 0.862  0.174  0.162  0.007  0.318 2.382  1.017    13.379     -0.033     0.097  True        True
+ H1   Q1         NaN           9     False       19       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+ H1   Q2         NaN           0     False        4       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+ H1   Q3         NaN           1     False        3       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+ H1   Q4         NaN           0     False        1       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+ H1   Q5         NaN           0     False        0       NaN        NaN   NaN      NaN   NaN    NaN    NaN    NaN    NaN   NaN    NaN       NaN        NaN       NaN False       False
+M5 best M5|Q2 E3|tp0.5|1h 14 0.025
+M15 best M15|base E2|tp0.3|3h 40 -0.001
+M30 best M30|Q1 E1|tp0.3|1h 10 0.007
+H1 best H1|base E1|tp0.3|3h 29 0.162
