@@ -1,0 +1,63 @@
+                                 n  per_day     wr  gross    net     lo     hi     pf     maxdd  hold_min  n_cost10  net_cost10  lo_cost10  hi_cost10  rand_p95  rand_mean  vs_T0  vs_T0_lo  vs_T0_hi   PASS
+name                                                                                                                                                                                                        
+T0 (1h)                       6835   20.966  0.285 -0.024 -0.645 -0.683 -0.606  0.392  4407.303    15.131      1599      -0.177     -0.237     -0.117       NaN        NaN    NaN       NaN       NaN    NaN
+T0 (3h)                       6835   20.966  0.279 -0.017 -0.633 -0.672 -0.593  0.420  4325.034    22.297      1599      -0.162     -0.228     -0.097       NaN        NaN    NaN       NaN       NaN    NaN
+T0+3min latency (3h, info)    6283   19.273  0.265 -0.003 -0.581 -0.620 -0.542  0.433  3649.927    23.212      1523      -0.149     -0.215     -0.084       NaN        NaN    NaN       NaN       NaN    NaN
+T1: T1|same|zone|3h           2170    6.656  0.300 -0.078 -0.406 -0.463 -0.349  0.492   885.118    77.153      1250      -0.227     -0.289     -0.165    -0.364     -0.616  0.227     0.157     0.296  False
+T2: T2|same|zone|3h           2217    6.801  0.281 -0.078 -0.610 -0.705 -0.515  0.385  1354.421    64.323      1066      -0.281     -0.347     -0.215    -0.467     -0.670  0.023    -0.080     0.126  False
+T3: T3|retest|zone|3h         2854    8.755  0.318 -0.067 -0.274 -0.318 -0.231  0.598   784.853    81.324      1685      -0.166     -0.218     -0.115    -0.305     -0.402  0.358     0.299     0.417  False
+T4: T4|same|zone|3h           5214   15.994  0.319 -0.022 -0.388 -0.435 -0.341  0.516  2025.592    76.938      2900      -0.156     -0.197     -0.116    -0.375     -0.533  0.245     0.184     0.307  False
+T5: T5a|m1|sweep|3h           4235   12.991  0.369  0.035 -0.323 -0.366 -0.280  0.605  1369.666    60.984      1982      -0.128     -0.181     -0.074    -0.312     -0.510  0.310     0.252     0.368  False
+T6: T4|same|zone|3h else T5a  6610   20.276  0.340  0.000 -0.355 -0.395 -0.315  0.554  2351.379    73.748      3569      -0.141     -0.179     -0.104    -0.333     -0.529  0.278     0.221     0.334  False
+
+ T3: T3|retest|zone|3h by tf
+                       set  by       n  per_day     wr  gross    net     lo     hi     pf
+H1   T3: T3|retest|zone|3h  tf    78.0    0.239  0.333 -0.189 -0.235 -0.364 -0.106  0.359
+H4   T3: T3|retest|zone|3h  tf     1.0    0.003  1.000  0.376  0.359    NaN    NaN    inf
+M15  T3: T3|retest|zone|3h  tf   572.0    1.755  0.369 -0.057 -0.173 -0.254 -0.092  0.664
+M30  T3: T3|retest|zone|3h  tf   135.0    0.414  0.393 -0.023 -0.096 -0.237  0.046  0.750
+M5   T3: T3|retest|zone|3h  tf  2068.0    6.344  0.298 -0.068 -0.316 -0.371 -0.261  0.585
+
+ T3: T3|retest|zone|3h by group
+                          set     by       n  per_day     wr  gross    net     lo     hi     pf
+CRYPTO  T3: T3|retest|zone|3h  group   827.0    2.537  0.310 -0.085 -0.379 -0.463 -0.294  0.513
+FOREX   T3: T3|retest|zone|3h  group  1666.0    5.110  0.318 -0.069 -0.257 -0.312 -0.202  0.608
+METALS  T3: T3|retest|zone|3h  group   361.0    1.107  0.338 -0.015 -0.116 -0.240  0.007  0.803
+
+ T6: T4|same|zone|3h else T5a by tf
+                              set  by       n  per_day     wr  gross    net     lo     hi     pf
+H1   T6: T4|same|zone|3h else T5a  tf   373.0    1.144  0.413 -0.036 -0.158 -0.247 -0.069  0.637
+H4   T6: T4|same|zone|3h else T5a  tf    27.0    0.083  0.333 -0.081 -0.138 -0.316  0.040  0.463
+M15  T6: T4|same|zone|3h else T5a  tf  1362.0    4.178  0.373  0.037 -0.174 -0.240 -0.108  0.728
+M30  T6: T4|same|zone|3h else T5a  tf   679.0    2.083  0.384 -0.039 -0.207 -0.285 -0.128  0.628
+M5   T6: T4|same|zone|3h else T5a  tf  4169.0   12.788  0.315 -0.001 -0.458 -0.515 -0.400  0.504
+
+ T6: T4|same|zone|3h else T5a by group
+                                 set     by       n  per_day     wr  gross    net     lo     hi     pf
+CRYPTO  T6: T4|same|zone|3h else T5a  group  1989.0    6.101  0.317 -0.018 -0.551 -0.650 -0.453  0.426
+FOREX   T6: T4|same|zone|3h else T5a  group  3817.0   11.709  0.348  0.003 -0.294 -0.337 -0.252  0.602
+METALS  T6: T4|same|zone|3h else T5a  group   804.0    2.466  0.358  0.031 -0.158 -0.248 -0.068  0.760
+
+ T0 (3h) by tf
+         set  by       n  per_day     wr  gross    net     lo     hi     pf
+H1   T0 (3h)  tf   402.0    1.233  0.371  0.011 -0.176 -0.300 -0.052  0.741
+H4   T0 (3h)  tf    41.0    0.126  0.512  0.219  0.148 -0.178  0.475  1.392
+M15  T0 (3h)  tf  1397.0    4.285  0.302  0.002 -0.386 -0.461 -0.312  0.571
+M30  T0 (3h)  tf   693.0    2.126  0.316 -0.010 -0.283 -0.384 -0.183  0.643
+M5   T0 (3h)  tf  4302.0   13.196  0.255 -0.029 -0.819 -0.873 -0.766  0.342
+
+ T0 (3h) by group
+            set     by       n  per_day     wr  gross    net     lo     hi     pf
+CRYPTO  T0 (3h)  group  2104.0    6.454  0.293 -0.015 -0.938 -1.028 -0.849  0.315
+FOREX   T0 (3h)  group  3909.0   11.991  0.269 -0.030 -0.541 -0.585 -0.496  0.459
+METALS  T0 (3h)  group   822.0    2.521  0.290  0.043 -0.290 -0.384 -0.195  0.645
+
+T6 sources: {'rev': 4526, 'sweep': 2084} {'mean': {'rev': -0.369, 'sweep': -0.325}, 'size': {'rev': 4526, 'sweep': 2084}}
+
+                               T0_losers_skipped  T0_winners_kept  zones_traded  zones_T0
+T1: T1|same|zone|3h                       0.758            0.476        2170.0    6835.0
+T2: T2|same|zone|3h                       0.721            0.411        2217.0    6835.0
+T3: T3|retest|zone|3h                     0.719            0.716        2854.0    6835.0
+T4: T4|same|zone|3h                       0.377            0.985        5214.0    6835.0
+T5: T5a|m1|sweep|3h                       0.271            0.347        4235.0    6835.0
+T6: T4|same|zone|3h else T5a              0.103            0.994        6610.0    6835.0
