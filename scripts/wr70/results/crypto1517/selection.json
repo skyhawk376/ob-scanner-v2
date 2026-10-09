@@ -1,0 +1,12 @@
+{
+ "selected": "E2|tp0.3|3h|all",
+ "eligible": false,
+ "n_eligible": 0,
+ "top5": [
+  "E2|tp0.3|3h|all",
+  "E2|tp0.3|1h|all",
+  "E2|tp0.5|3h|all",
+  "E2|tp0.5|1h|all",
+  "E2|tp0.75|3h|all"
+ ]
+}
