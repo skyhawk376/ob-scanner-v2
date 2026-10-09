@@ -1,0 +1,170 @@
+{
+ "M5|base": {
+  "cfg": "E3|tp0.3|3h",
+  "eligible": false,
+  "train_n": 385,
+  "train_wr": 0.5792207792207792,
+  "train_net": -0.3145048551335909
+ },
+ "M5|Q1": {
+  "cfg": "E2|tp0.3|3h",
+  "eligible": false,
+  "train_n": 82,
+  "train_wr": 0.5975609756097561,
+  "train_net": -0.20205159648059123
+ },
+ "M5|Q2": {
+  "cfg": "E3|tp0.5|1h",
+  "eligible": false,
+  "train_n": 24,
+  "train_wr": 0.5833333333333334,
+  "train_net": -0.43754815493613686
+ },
+ "M5|Q3": {
+  "cfg": "E3|tp0.5|3h",
+  "eligible": false,
+  "train_n": 21,
+  "train_wr": 0.5238095238095238,
+  "train_net": -0.3479369106634647
+ },
+ "M5|Q4": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 18,
+  "train_wr": null,
+  "train_net": null
+ },
+ "M5|Q5": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 3,
+  "train_wr": null,
+  "train_net": null
+ },
+ "M15|base": {
+  "cfg": "E2|tp0.3|3h",
+  "eligible": false,
+  "train_n": 72,
+  "train_wr": 0.6111111111111112,
+  "train_net": -0.1256151612494541
+ },
+ "M15|Q1": {
+  "cfg": "E2|tp0.3|3h",
+  "eligible": false,
+  "train_n": 25,
+  "train_wr": 0.68,
+  "train_net": 0.0036922064061431525
+ },
+ "M15|Q2": {
+  "cfg": "E1|tp0.3|1h",
+  "eligible": false,
+  "train_n": 23,
+  "train_wr": 0.5652173913043478,
+  "train_net": -0.3134720981498626
+ },
+ "M15|Q3": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 12,
+  "train_wr": null,
+  "train_net": null
+ },
+ "M15|Q4": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 7,
+  "train_wr": null,
+  "train_net": null
+ },
+ "M15|Q5": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 1,
+  "train_wr": null,
+  "train_net": null
+ },
+ "M30|base": {
+  "cfg": "E1|tp0.3|1h",
+  "eligible": false,
+  "train_n": 99,
+  "train_wr": 0.6464646464646465,
+  "train_net": -0.15532571086555322
+ },
+ "M30|Q1": {
+  "cfg": "E1|tp0.3|1h",
+  "eligible": false,
+  "train_n": 33,
+  "train_wr": 0.6363636363636364,
+  "train_net": -0.16731052705497587
+ },
+ "M30|Q2": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 10,
+  "train_wr": null,
+  "train_net": null
+ },
+ "M30|Q3": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 7,
+  "train_wr": null,
+  "train_net": null
+ },
+ "M30|Q4": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 3,
+  "train_wr": null,
+  "train_net": null
+ },
+ "M30|Q5": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 1,
+  "train_wr": null,
+  "train_net": null
+ },
+ "H1|base": {
+  "cfg": "E1|tp0.3|3h",
+  "eligible": false,
+  "train_n": 47,
+  "train_wr": 0.7021276595744681,
+  "train_net": -0.07485589928547125
+ },
+ "H1|Q1": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 19,
+  "train_wr": null,
+  "train_net": null
+ },
+ "H1|Q2": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 4,
+  "train_wr": null,
+  "train_net": null
+ },
+ "H1|Q3": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 3,
+  "train_wr": null,
+  "train_net": null
+ },
+ "H1|Q4": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 1,
+  "train_wr": null,
+  "train_net": null
+ },
+ "H1|Q5": {
+  "cfg": null,
+  "eligible": false,
+  "train_n": 0,
+  "train_wr": null,
+  "train_net": null
+ }
+}
