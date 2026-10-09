@@ -17,7 +17,7 @@ from . import params as P
 from . import store as S
 from .alerts import format_event, max_age_sec
 from .detect import detect_zones
-from .sim import TERMINAL, simulate_zone
+from .sim import TERMINAL, norm_index, simulate_zone
 
 LIVE_STATES = ("active", "touched", "waiting", "entered", "be")
 TRADE_STATES = ("touched", "entered", "be")
@@ -28,7 +28,7 @@ UI_STATUS = {"active": "active", "touched": "touchee", "waiting": "touchee", "en
 
 
 def _utcnow() -> pd.Timestamp:
-    return pd.Timestamp.now(tz="UTC")
+    return pd.Timestamp.now(tz="UTC").floor("s")
 
 
 def universe(settings: Settings | None = None) -> list[Instrument]:
@@ -143,6 +143,7 @@ def _process_symbol(conn, ctx: _Ctx, inst: Instrument, tf: str, armed: float | N
     htf = read_cache(settings.cache_dir, inst.id, tf)
     if htf is None or htf.empty:
         return {"zones": 0}
+    htf = norm_index(htf)
     htf = htf[~htf.index.duplicated(keep="last")].sort_index()
     ltf_tf = P.LOWER_TF[tf]
     all_rows = S.stored_zones(conn, symbol=inst.id, tf=tf)
@@ -156,13 +157,13 @@ def _process_symbol(conn, ctx: _Ctx, inst: Instrument, tf: str, armed: float | N
         zdefs.update(stored)  # vanished fix: a stored live zone is always re-checked
     if not zdefs:
         return {"zones": 0}
-    ltf = read_cache(settings.cache_dir, inst.id, ltf_tf)
+    ltf = norm_index(read_cache(settings.cache_dir, inst.id, ltf_tf))
     results = {zid: simulate_zone(z, htf, ltf, ctx.now) for zid, z in zdefs.items()}
     need = [zid for zid, r in results.items() if r["state"] in TRADE_STATES]
     if need and ctx.fetch_ltf and not _fresh_enough(ltf, ltf_tf, ctx.now) and (inst.id, ltf_tf) not in ctx.fetched:
         ctx.fetched.add((inst.id, ltf_tf))
         if _fetch(inst, ltf_tf, settings, limit=1000 if ltf_tf == "M1" else 300):
-            ltf = read_cache(settings.cache_dir, inst.id, ltf_tf)
+            ltf = norm_index(read_cache(settings.cache_dir, inst.id, ltf_tf))
             for zid in need:
                 results[zid] = simulate_zone(zdefs[zid], htf, ltf, ctx.now)
     n_live = 0

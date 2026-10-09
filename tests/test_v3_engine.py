@@ -199,3 +199,17 @@ def test_costs_and_tf_mapping():
     assert cost_r("XAUUSD", 2400.0, 2.0, "METAUX") == pytest.approx((0.25 + 0.07 + 0.10 * 2) / 2.0)
     assert cost_r("EURUSD", 1.1, 0.0010, "FOREX", stop_exit=False) == pytest.approx((0.2 + 0.6 + 0.2) * 1e-4 / 0.0010)
     assert cost_r("NAS100", 20000, 20, "NQ100") > 0 and cost_r("DOGE", 0.1, 0.002, "CRYPTO") > 0
+
+
+def test_second_unit_index_and_ns_now():
+    """Prod cache files carry datetime64[s]/[ms] indexes; `now` has sub-second precision."""
+    h1 = bull_h1()
+    h1s = h1.copy()
+    h1s.index = h1s.index.as_unit("s")
+    m15 = m15_for(h1, [TOUCH, HAMMER] + [FLAT_AT(100.8)] * 10)
+    m15.index = m15.index.as_unit("ms")
+    now = h1.index[-1] + pd.Timedelta(hours=1, microseconds=123457, nanoseconds=11)
+    zs = detect_zones(h1s, "H1", "T", now=now)
+    assert zs
+    r = simulate_zone({**[z for z in zs if z["direction"] == "bull"][0], "star_trend": True, "star_liquidity": True}, h1s, m15, now)
+    assert r["trade"] is not None

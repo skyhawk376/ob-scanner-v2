@@ -32,6 +32,22 @@ def _iso(x) -> str:
     return _ts(x).isoformat()
 
 
+def norm_index(df: pd.DataFrame | None) -> pd.DataFrame | None:
+    """UTC, nanosecond DatetimeIndex (cache files may come back in s/ms/us units and
+    searchsorted with a ns Timestamp would raise 'Cannot losslessly convert units')."""
+    if df is None or not len(df):
+        return df
+    idx = pd.DatetimeIndex(df.index)
+    idx = idx.tz_localize("UTC") if idx.tz is None else idx.tz_convert("UTC")
+    if str(idx.dtype) != "datetime64[ns, UTC]":
+        idx = idx.as_unit("ns")
+    if idx is df.index:
+        return df
+    out = df.copy()
+    out.index = idx
+    return out
+
+
 def _first(mask: np.ndarray, start: int, stop: int) -> int | None:
     if start >= stop:
         return None
@@ -133,6 +149,8 @@ def _trade(zone: dict, ltf: pd.DataFrame, j0: int, entry: float, sl: float, bull
 
 def simulate_zone(zone: dict, htf: pd.DataFrame, ltf: pd.DataFrame | None,
                   now: pd.Timestamp | None = None) -> dict[str, Any]:
+    htf = norm_index(htf)
+    ltf = norm_index(ltf)
     tf = zone["tf"]
     bull = zone["direction"] == "bull"
     prox = zone["high"] if bull else zone["low"]

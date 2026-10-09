@@ -118,6 +118,9 @@ def detect_zones(
     (default: all bars treated as closed, i.e. backtest), so a stored zone never changes."""
     if df is None or len(df) < P.ATR_LEN + 3:
         return []
+    from .sim import norm_index
+
+    df = norm_index(df)
     o = df["open"].to_numpy(float)
     h = df["high"].to_numpy(float)
     l = df["low"].to_numpy(float)
