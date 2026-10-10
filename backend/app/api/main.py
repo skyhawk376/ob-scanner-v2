@@ -95,6 +95,20 @@ def _maybe_scheduler():
             id="digest_london",
             replace_existing=True,
         )
+        # Aérogest B23 free-slot watcher (independent of trading alerts; never raises).
+        try:
+            from ..aerogest.service import config as _ag_config, run_once as _ag_run
+
+            if _ag_config()["enabled"]:
+                _ag_db = settings.db_path
+                sched.add_job(
+                    lambda: _ag_run(_ag_db),
+                    CronTrigger(minute="*/10", hour="7-22", timezone=settings.tz),
+                    id="aerogest",
+                    replace_existing=True,
+                )
+        except Exception as e:
+            print(f"[scheduler] aerogest job not added: {e}", flush=True)
         if settings.enable_fetch:
             # Boot: run every due TF ~10 s after start (TFs with an empty cache get
             # BOOTSTRAP_LIMIT bars; a TF never run before is due immediately).
@@ -197,6 +211,16 @@ def strategy():
 def healthz():
     """Liveness probe for Fly/Docker — no disk scan, no network."""
     return {"status": "ok"}
+
+
+@app.get("/api/aerogest/status")
+def aerogest_status():
+    from ..aerogest.service import status
+
+    try:
+        return status(get_settings().db_path)
+    except Exception as e:
+        return {"error": type(e).__name__}
 
 
 @app.get("/health")
